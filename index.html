@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Praise Master Pro - 가창 진도율 보호 시스템 v6.0</title>
+    <title>AI Praise Master Pro - 가창 진도율 보호 시스템 v6.1</title>
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -115,7 +115,7 @@
     <div id="setup-screen">
         <div class="container">
             <div class="header">
-                <h1>AI PRAISE MASTER <span>PRO v6.0</span></h1>
+                <h1>AI PRAISE MASTER <span>PRO v6.1</span></h1>
                 <p>AI가 가사와 절수를 분석합니다. <span style="color:var(--success)">[Smart Lock]</span> 가창 진도 70% 이후에만 자동 전환이 허용됩니다.</p>
             </div>
             <div class="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -377,16 +377,19 @@
             if (speech.includes("삼절") || speech.includes("3절")) { jumpToVerse("3절"); return; }
             if (speech.includes("후렴") || speech.includes("코러스")) { jumpToVerse("후렴"); return; }
 
-            // [순차 전환] - 70% 이상 불려졌을 때만 허용
+            // 현재 가창 진행률이 70% 미만이면 자동 가사 전환(끝 단어 전환 및 글로벌 첫 단어 점프)을 모두 보류 및 차단합니다.
+            if (currentProgress < 70) return;
+
+            // [순차 전환] - 현재 슬라이드의 마지막 가사가 들리면 다음 장으로 전환
             const cur = slidesData[currentIndex];
-            if (currentProgress >= 70 && cur.lastWord && speech.includes(cur.lastWord)) {
+            if (cur.lastWord && speech.includes(cur.lastWord)) {
                 if (currentIndex < slidesData.length - 1) {
                     lastTriggerTime = now; updateSlide(currentIndex + 1);
                     return;
                 }
             }
 
-            // [글로벌 점프] - 70% 룰 제외 (갑작스러운 진행 변경 대응)
+            // [글로벌 점프] - 70% 이상 진행 완료된 상태에서 다른 슬라이드의 첫 가사가 감지될 시 해당 장으로 워프
             for (let i = 0; i < slidesData.length; i++) {
                 if (i === currentIndex) continue;
                 if (slidesData[i].firstWord && speech.includes(slidesData[i].firstWord)) {
