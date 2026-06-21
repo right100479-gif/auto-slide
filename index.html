@@ -206,6 +206,27 @@
         .status-loading { color: var(--accent); }
         .status-done { color: var(--success); }
 
+        .editor-inputs {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 15px;
+        }
+
+        .review-card input.attribute-input {
+            width: 100%;
+            height: 70px;
+            background: #090d16;
+            color: #facc15;
+            font-weight: bold;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 1rem;
+            text-align: center;
+            outline: none;
+            font-family: 'Pretendard', sans-serif;
+        }
+
         .review-card textarea {
             width: 100%;
             height: 70px;
@@ -221,7 +242,7 @@
             transition: border-color 0.2s;
         }
 
-        .review-card textarea:focus {
+        .review-card textarea:focus, .review-card input.attribute-input:focus {
             border-color: var(--accent);
         }
 
@@ -371,6 +392,45 @@
             font-size: 0.95rem;
             border: 1px solid rgba(250, 204, 21, 0.2);
             word-break: break-all;
+        }
+
+        /* 슬라이드 고속 점프 사이버 HUD 오버레이 */
+        #jump-hud {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(9, 13, 22, 0.95);
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 40px var(--accent-glow);
+            border-radius: 20px;
+            padding: 30px 60px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            pointer-events: none; /* 클릭 차단 방지 */
+        }
+        #jump-hud .hud-title {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        #jump-hud #hud-number {
+            font-size: 5.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 25px var(--accent-glow);
+            line-height: 1;
+        }
+        #jump-hud .hud-tip {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
         }
 
         /* ----------------------------------
@@ -526,12 +586,20 @@
                 <div class="voice-box" id="voice-preview">음성인식을 활성화해주세요.</div>
             </div>
         </div>
+
+        <!-- 슬라이드 고속 이동 HUD -->
+        <div id="jump-hud">
+            <div class="hud-title"><i class="fa-solid fa-arrow-up-right-from-square"></i> 슬라이드 이동</div>
+            <div id="hud-number">0</div>
+            <div class="hud-tip">[Enter] 이동 | [Backspace] 지우기 | [Esc] 취소</div>
+        </div>
     </div>
 
     <!-- 하단 유틸리티 컨트롤 바 -->
     <div class="bottom-bar">
         <button class="btn btn-ghost" onclick="location.reload()"><i class="fa-solid fa-rotate-right"></i> 리셋</button>
         <button class="btn btn-warning" id="btn-edit-back" style="display:none;"><i class="fa-solid fa-pen-to-square"></i> 가사 재교정</button>
+        <button class="btn btn-success" id="btn-projector" style="display:none;"><i class="fa-solid fa-desktop"></i> 📺 프로젝터 송출</button>
         <button class="btn btn-ghost" id="btn-prev" disabled><i class="fa-solid fa-chevron-left"></i> 이전</button>
         <button class="btn btn-primary" id="btn-mic-toggle" style="display:none;"><i class="fa-solid fa-microphone"></i> 음성 인식 시작</button>
         <button class="btn btn-ghost" id="btn-next" disabled>다음 <i class="fa-solid fa-chevron-right"></i></button>
@@ -547,6 +615,11 @@
         let isListening = false;
         let lastTriggerTime = 0;
         let ocrWorker = null;
+        let projectorWindow = null;
+
+        // 슬라이드 고속 번호 점프용 버퍼 데이터
+        let jumpBuffer = "";
+        let jumpTimeout = null;
 
         const fileInput = document.getElementById('file-input');
         const reviewArea = document.getElementById('review-area');
@@ -559,6 +632,7 @@
         const btnNext = document.getElementById('btn-next');
         const btnMicToggle = document.getElementById('btn-mic-toggle');
         const btnEditBack = document.getElementById('btn-edit-back');
+        const btnProjector = document.getElementById('btn-projector');
         
         const voicePreview = document.getElementById('voice-preview');
         const nextTrigger = document.getElementById('next-trigger');
@@ -569,6 +643,9 @@
         const chorusMonitorRow = document.getElementById('chorus-monitor-row');
         const verseMonitorRow = document.getElementById('verse-monitor-row');
         const verseMonitorLabel = document.getElementById('verse-monitor-label');
+
+        const jumpHud = document.getElementById('jump-hud');
+        const hudNumber = document.getElementById('hud-number');
 
         // 시스템 실시간 시계 연동
         setInterval(() => {
@@ -637,10 +714,13 @@
                     </div>
                     <div class="edit-box">
                         <div class="status-label">
-                            <span>가사 교정 창</span>
+                            <span>속성 및 가사 교정</span>
                             <span class="status-loading" id="status-txt-${i}"><i class="fa-solid fa-spinner fa-spin"></i> AI 가사 읽는 중...</span>
                         </div>
-                        <textarea id="lyrics-input-${i}" placeholder="추출 중..."></textarea>
+                        <div class="editor-inputs">
+                            <input type="text" id="attr-input-${i}" class="attribute-input" placeholder="절수 (예: 1절)" value="">
+                            <textarea id="lyrics-input-${i}" placeholder="추출 중..."></textarea>
+                        </div>
                     </div>
                 `;
                 reviewArea.appendChild(card);
@@ -658,7 +738,6 @@
                         const linesForVerse = text.split('\n');
                         for (let line of linesForVerse) {
                             const trimmed = line.trim();
-                            // 찬양 곡 타이틀 번호(예: 204) 오인식을 방지하기 위해 1자리 숫자 및 점 뒤 여백 매칭
                             const match = trimmed.match(/^([1-9])(?:\s+|\.|$)/);
                             if (match) {
                                 detectedVerse = match[1];
@@ -669,7 +748,7 @@
                         text = text.replace(/[0-9]+장/g, '');
                         text = text.replace(/[a-zA-Z]/g, '');
                         
-                        // 감지된 절수 숫자 제거하여 가사 본문 및 키워드 순수도 극대화
+                        // 감지된 절수 숫자 제거하여 가사 본문 극대화
                         text = text.replace(/^\s*[1-9]\s+/, '');
                         text = text.replace(/\n\s*[1-9]\s+/g, '\n');
                         text = text.trim();
@@ -680,7 +759,12 @@
 
                         const cleanText = lines.join(' ');
                         const targetTextarea = document.getElementById(`lyrics-input-${i}`);
+                        const targetAttrInput = document.getElementById(`attr-input-${i}`);
+                        
                         targetTextarea.value = cleanText;
+                        if (detectedVerse) {
+                            targetAttrInput.value = detectedVerse + "절";
+                        }
 
                         document.getElementById(`status-txt-${i}`).className = 'status-done';
                         document.getElementById(`status-txt-${i}`).innerHTML = `<i class="fa-solid fa-circle-check"></i> 추출 완료`;
@@ -690,8 +774,19 @@
                             index: i,
                             fileUrl: objectURL,
                             rawText: cleanText,
-                            detectedVerse: detectedVerse
+                            detectedVerse: detectedVerse ? detectedVerse + "절" : ""
                         };
+
+                        // 사용자가 수동으로 가사나 속성을 타이핑해 고칠 때 실시간 싱크 처리
+                        targetTextarea.addEventListener('input', () => {
+                            slidesData[i].rawText = targetTextarea.value;
+                            checkAndClassifySlides();
+                        });
+
+                        targetAttrInput.addEventListener('input', () => {
+                            slidesData[i].detectedVerse = targetAttrInput.value;
+                            checkAndClassifySlides();
+                        });
 
                         // 모든 슬라이드가 로드된 뒤 후렴 및 키워드 자동 처리 트리거링
                         checkAndClassifySlides();
@@ -706,7 +801,6 @@
 
         // 3. 지능형 가사 대조를 통한 자가 교정 및 '자동 후렴구(Chorus) 분류' 및 첫/끝 단어 추출
         function checkAndClassifySlides() {
-            // 모든 업로드 이미지가 임시 slidesData 리스트에 모였을 때 전체 검사
             const activeCount = slidesData.filter(Boolean).length;
             const targetCount = fileInput.files.length;
             if (activeCount !== targetCount) return;
@@ -725,7 +819,6 @@
                 const currentText = slidesData[i].cleanText;
                 let isChorus = false;
 
-                // 텍스트 길이가 유효하고 다른 슬라이드 가사 중 동일한 가사가 있을 때 후렴으로 자동 매핑
                 if (currentText.length > 5) {
                     for (let j = 0; j < slidesData.length; j++) {
                         if (i !== j && slidesData[j].cleanText === currentText) {
@@ -735,7 +828,6 @@
                     }
                 }
 
-                // 텍스트 자체에 '후렴', '후렴구', 'chorus' 등이 들어있는 경우 강제 매칭
                 if (slidesData[i].rawText.includes("후렴") || slidesData[i].rawText.includes("Chorus")) {
                     isChorus = true;
                 }
@@ -746,22 +838,23 @@
             // 절 번호(Verse) 순차적 전파 및 배지 렌더링
             let currentVerse = "";
             for (let i = 0; i < slidesData.length; i++) {
-                // 새로운 절이 직접 감지되었을 때 상태 갱신
-                if (slidesData[i].detectedVerse) {
-                    currentVerse = slidesData[i].detectedVerse + "절";
+                const userAttrValue = document.getElementById(`attr-input-${i}`).value.trim();
+                
+                if (userAttrValue) {
+                    currentVerse = userAttrValue;
+                    slidesData[i].detectedVerse = userAttrValue;
+                } else if (slidesData[i].detectedVerse) {
+                    currentVerse = slidesData[i].detectedVerse;
                 }
 
-                // 후렴구인 경우 '후렴', 일반 슬라이드인 경우 현재 유효한 상속된 절 정보 적용
                 if (slidesData[i].isChorus) {
                     slidesData[i].verseLabel = "후렴";
                 } else {
                     slidesData[i].verseLabel = currentVerse;
                 }
 
-                // 가사 교정 카드 UI 업데이트
                 const card = document.getElementById(`card-${i}`);
                 if (card) {
-                    // 이전 하이라이트 클래스 제거
                     card.classList.remove('chorus-highlight', 'verse-highlight');
                     const oldBadge = card.querySelector('.chorus-badge, .verse-badge');
                     if (oldBadge) oldBadge.remove();
@@ -780,7 +873,6 @@
                         card.appendChild(badge);
                     }
 
-                    // 슬라이드 번호 배지 텍스트 갱신 (절 정보 추가)
                     const badgeTextEl = document.getElementById(`badge-${i}`);
                     if (badgeTextEl) {
                         badgeTextEl.innerHTML = `SLIDE ${i + 1}${slidesData[i].verseLabel ? ` (${slidesData[i].verseLabel})` : ''}`;
@@ -795,8 +887,8 @@
                 let lastWord = "";
 
                 if (cleanText.length >= 3) {
-                    firstWord = cleanText.substring(0, 3); // 시작 구절 3글자
-                    lastWord = cleanText.substring(cleanText.length - 3); // 끝 구절 3글자
+                    firstWord = cleanText.substring(0, 3);
+                    lastWord = cleanText.substring(cleanText.length - 3);
                 } else if (cleanText.length > 0) {
                     firstWord = cleanText;
                     lastWord = cleanText;
@@ -809,7 +901,6 @@
 
         // 4. 교정 완료 및 발표 환경 부팅
         btnLaunch.addEventListener('click', () => {
-            // 실행 버튼 클릭 직전 갱신된 에디터 텍스트로 트리거 재연산 실행
             checkAndClassifySlides();
 
             if (slidesData.length === 0) {
@@ -823,12 +914,13 @@
             btnPrev.disabled = false;
             btnNext.disabled = false;
             btnMicToggle.style.display = 'flex';
-            btnEditBack.style.display = 'flex'; // 라이브 모드에서 재교정 활성화
+            btnEditBack.style.display = 'flex'; 
+            btnProjector.style.display = 'flex'; 
 
-            updateSlide(currentIndex); // 현재 기억하고 있는 인덱스 기준으로 로드
+            updateSlide(currentIndex);
         });
 
-        // 5. 슬라이드 상태 제어기
+        // 5. 슬라이드 상태 제어기 및 프로젝터 스크린 연동
         function updateSlide(index) {
             if (index < 0 || index >= slidesData.length) return;
             currentIndex = index;
@@ -836,7 +928,14 @@
             slideView.src = slidesData[currentIndex].fileUrl;
             pageCounter.innerHTML = `${currentIndex + 1} / ${slidesData.length}`;
 
-            // 후렴구 여부에 따른 모니터링 데크 스타일 전환
+            // 프로젝터 보조 모니터 윈도우 동기화 처리
+            if (projectorWindow && !projectorWindow.closed) {
+                const projectorImg = projectorWindow.document.getElementById('projector-slide-img');
+                if (projectorImg) {
+                    projectorImg.src = slidesData[currentIndex].fileUrl;
+                }
+            }
+
             if (slidesData[currentIndex].isChorus) {
                 monitorPanel.className = 'chorus-active';
                 chorusMonitorRow.style.display = 'flex';
@@ -852,14 +951,12 @@
                 verseMonitorRow.style.display = 'none';
             }
 
-            // 끝 구절 트리거 갱신 (다음 장 전환용)
             if (currentIndex < slidesData.length - 1) {
                 nextTrigger.textContent = slidesData[currentIndex].lastWord;
             } else {
                 nextTrigger.textContent = "[최종 장]";
             }
 
-            // 글로벌 첫 단어 점프 트리거 모음 대시보드 렌더링
             const triggerInfo = slidesData.map((s, idx) => {
                 const label = s.isChorus ? " [후렴]" : (s.verseLabel ? ` [${s.verseLabel}]` : "");
                 return `장 ${idx + 1}: ${s.firstWord}${label}`;
@@ -875,7 +972,69 @@
             if (currentIndex > 0) updateSlide(currentIndex - 1);
         }
 
-        // 6. 음성 처리 및 지능형 2중 입체 감지 (글로벌 첫단어 / 로컬 끝단어)
+        // 6. 독립된 프로젝터용 송출 스크린 (Popup Window Mode)
+        btnProjector.addEventListener('click', () => {
+            if (projectorWindow && !projectorWindow.closed) {
+                projectorWindow.focus();
+                return;
+            }
+
+            // 메뉴바, 툴바, 상태바 없는 완벽한 전체화면용 팝업 실행
+            projectorWindow = window.open('', 'PraiseProjectorWindow', 'width=1280,height=720,scrollbars=no,resizable=yes');
+            
+            if (!projectorWindow) {
+                alert("크롬 주소창 우측에서 팝업창 차단을 '허용'으로 변경해 주세요!");
+                return;
+            }
+
+            projectorWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ko">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>AI Praise Master Pro - 프로젝터 송출 화면</title>
+                    <style>
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            background-color: #000;
+                            height: 100vh;
+                            width: 100vw;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            overflow: hidden;
+                        }
+                        img {
+                            max-width: 100%;
+                            max-height: 100%;
+                            object-fit: contain;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <img id="projector-slide-img" src="${slidesData[currentIndex].fileUrl}" alt="Worship Slide">
+                </body>
+                </html>
+            `);
+            projectorWindow.document.close();
+        });
+
+        // 7. 슬라이드 다이렉트 숫자 키패드 점프 HUD 엔진
+        function showJumpHud(numberString) {
+            hudNumber.textContent = numberString;
+            jumpHud.style.display = 'flex';
+
+            if (jumpTimeout) clearTimeout(jumpTimeout);
+            jumpTimeout = setTimeout(clearJumpHud, 4000); // 4초 무입력 시 자동 클리어
+        }
+
+        function clearJumpHud() {
+            jumpHud.style.display = 'none';
+            jumpBuffer = "";
+        }
+
+        // 8. 음성 처리 및 지능형 2중 입체 감지 (글로벌 첫단어 / 로컬 끝단어)
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!window.SpeechRecognition) {
@@ -899,8 +1058,6 @@
 
             recognition.onerror = (event) => {
                 console.error("STT 에러 발생:", event.error);
-                
-                // [안전 로직] 권한 차단 등의 에러 시, 재시작 루프에 빠지지 않도록 완전히 종료
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     isListening = false;
                     recognition.stop();
@@ -946,7 +1103,6 @@
             const now = Date.now();
             if (now - lastTriggerTime < 2000) return; // 2초 쿨다운
 
-            // [로직 1] 로컬 끝단어 감지 -> 해당 슬라이드의 끝 단어가 나오면 다음 슬라이드로 순차 이동
             const currentSlide = slidesData[currentIndex];
             if (currentSlide && currentSlide.lastWord && speech.includes(currentSlide.lastWord)) {
                 if (currentIndex < slidesData.length - 1) {
@@ -957,9 +1113,8 @@
                 }
             }
 
-            // [로직 2] 글로벌 첫단어 감지 -> 모든 슬라이드를 대상으로 첫 단어가 나오면 즉시 비선형 슬라이드 점프 (후렴구 자동 이동 포함)
             for (let i = 0; i < slidesData.length; i++) {
-                if (i === currentIndex) continue; // 현재 보고 있는 장은 패스
+                if (i === currentIndex) continue;
                 const slide = slidesData[i];
                 if (slide && slide.firstWord && speech.includes(slide.firstWord)) {
                     lastTriggerTime = now;
@@ -970,7 +1125,7 @@
             }
         }
 
-        // 7. 하단 제어 인터페이스 바인딩
+        // 9. 하단 제어 인터페이스 바인딩
         btnMicToggle.addEventListener('click', () => {
             if (!recognition) initSpeechRecognition();
             if (isListening) {
@@ -983,30 +1138,96 @@
 
         // 가사 재교정 버튼 클릭 리스너 (라이브 도중 다시 셋업창으로 복귀)
         btnEditBack.addEventListener('click', () => {
-            // 마이크 작동 중이면 정지
             if (isListening) {
                 isListening = false;
                 recognition.stop();
             }
 
-            // 레이아웃 전환
             setupScreen.style.display = 'flex';
             liveScreen.style.display = 'none';
 
-            // 라이브용 전용 제어기 숨기기
             btnPrev.disabled = true;
             btnNext.disabled = true;
             btnMicToggle.style.display = 'none';
             btnEditBack.style.display = 'none';
+            btnProjector.style.display = 'none';
         });
 
-        btnNext.addEventListener('click', nextSlide);
-        btnPrev.addEventListener('click', prevSlide);
+        btnNext.addEventListener('click', () => {
+            if (document.activeElement) document.activeElement.blur();
+            nextSlide();
+        });
+        
+        btnPrev.addEventListener('click', () => {
+            if (document.activeElement) document.activeElement.blur();
+            prevSlide();
+        });
 
+        // 10. 전천후 키보드 이벤트 리스너 (포커스 가로채기 방지 적용)
         document.addEventListener('keydown', (e) => {
             if (liveScreen.style.display === 'flex') {
-                if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
-                if (e.key === 'ArrowLeft') prevSlide();
+                
+                // 10.1. 슬라이드 점프용 키패드 숫자 입력 감지 (0 ~ 9)
+                if (e.key >= '0' && e.key <= '9') {
+                    // 키 입력 시 현재 활성화된 브라우저 포커스(버튼 등)를 해제하여 오동작 완벽 차단!
+                    if (document.activeElement) document.activeElement.blur();
+                    
+                    jumpBuffer += e.key;
+                    showJumpHud(jumpBuffer);
+                    e.preventDefault();
+                    return;
+                }
+
+                // 10.2. 백스페이스(타이핑 수정)
+                if (e.key === 'Backspace' && jumpBuffer.length > 0) {
+                    if (document.activeElement) document.activeElement.blur();
+                    jumpBuffer = jumpBuffer.slice(0, -1);
+                    if (jumpBuffer.length === 0) {
+                        clearJumpHud();
+                    } else {
+                        showJumpHud(jumpBuffer);
+                    }
+                    e.preventDefault();
+                    return;
+                }
+
+                // 10.3. ESC (점프 입력 취소)
+                if (e.key === 'Escape') {
+                    clearJumpHud();
+                    e.preventDefault();
+                    return;
+                }
+
+                // 10.4. 엔터 입력 시 지정한 번호 슬라이드로 무지연 강제 전환
+                if (e.key === 'Enter') {
+                    if (jumpBuffer.length > 0) {
+                        // 브라우저가 포커스된 버튼을 한 번 더 누르는 기본 동작을 완벽히 차단
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (document.activeElement) document.activeElement.blur();
+
+                        const parsedIndex = parseInt(jumpBuffer, 10);
+                        if (!isNaN(parsedIndex) && parsedIndex > 0 && parsedIndex <= slidesData.length) {
+                            updateSlide(parsedIndex - 1);
+                        } else {
+                            alert(`존재하지 않는 번호입니다. 1번부터 ${slidesData.length}번 슬라이드 범위에서 입력해 주세요.`);
+                        }
+                        clearJumpHud();
+                        return;
+                    }
+                }
+
+                // 10.5. 기본 슬라이드 전환 키 (방향키 및 스페이스바)
+                if (e.key === 'ArrowRight' || e.key === ' ') {
+                    if (document.activeElement) document.activeElement.blur();
+                    nextSlide();
+                    e.preventDefault();
+                }
+                if (e.key === 'ArrowLeft') {
+                    if (document.activeElement) document.activeElement.blur();
+                    prevSlide();
+                    e.preventDefault();
+                }
             }
         });
     </script>
