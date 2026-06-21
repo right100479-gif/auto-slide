@@ -1036,7 +1036,7 @@
             jumpBuffer = "";
         }
 
-        // 8. 음성 처리 및 지능형 2중 입체 감지 (글로벌 첫단어 / 로컬 끝단어)
+        // 8. 음성 처리 및 지능형 3중 입체 감지 (구어체 절수 이동 / 글로벌 첫단어 / 로컬 끝단어)
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!window.SpeechRecognition) {
@@ -1100,11 +1100,47 @@
             };
         }
 
-        // 지능형 2중 매칭 핵심 로직
+        // 지능형 3중 매칭 핵심 로직 (절수 구어체 감지 최우선 처리 적용)
         function checkSpeechMatch(speech) {
             const now = Date.now();
             if (now - lastTriggerTime < 2000) return; // 2초 쿨다운
 
+            // [1순위] 구어체 절수 이동 감지 (예: "2절", "이절", "후렴" 등)
+            const verseKeywords = {
+                "1절": ["일절", "1절"],
+                "2절": ["이절", "2절"],
+                "3절": ["삼절", "3절"],
+                "4절": ["사절", "4절"],
+                "5절": ["오절", "5절"],
+                "후렴": ["후렴", "후렴구", "코러스"]
+            };
+
+            for (let targetLabel in verseKeywords) {
+                const matches = verseKeywords[targetLabel];
+                for (let matchWord of matches) {
+                    if (speech.includes(matchWord)) {
+                        let targetIndex = -1;
+                        for (let i = 0; i < slidesData.length; i++) {
+                            if (slidesData[i]) {
+                                const currentLabel = slidesData[i].isChorus ? "후렴" : (slidesData[i].verseLabel || "");
+                                if (currentLabel.replace(/\s+/g, "") === targetLabel) {
+                                    targetIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (targetIndex !== -1) {
+                            lastTriggerTime = now;
+                            updateSlide(targetIndex);
+                            voicePreview.textContent = `[절수 명령 감지] ${targetLabel} 첫 장으로 이동 완료`;
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // [2순위] 로컬 끝 단어 매칭 (현재 장 끝부분 가사 -> 다음 장 이동)
             const currentSlide = slidesData[currentIndex];
             if (currentSlide && currentSlide.lastWord && speech.includes(currentSlide.lastWord)) {
                 if (currentIndex < slidesData.length - 1) {
@@ -1115,6 +1151,7 @@
                 }
             }
 
+            // [3순위] 글로벌 시작 단어 매칭 (다른 장의 가사 첫부분 -> 해당 장으로 즉시 점프)
             for (let i = 0; i < slidesData.length; i++) {
                 if (i === currentIndex) continue;
                 const slide = slidesData[i];
