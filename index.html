@@ -3,121 +3,610 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 찬양 마스터 프로 v3.0 (인식률 대폭 강화 버전)</title>
-    <!-- 고성능 AI OCR 엔진 로드 -->
+    <title>AI Praise Master Pro - 자동 후렴구/절 인식 및 양방향 제어</title>
+    <!-- 구글 폰트 및 아이콘 라이브러리 로드 -->
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tesseract.js (AI 글자 추출 엔진) CDN -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
     <style>
         :root {
-            --bg-color: #0b0f19;
-            --text-color: #f1f5f9;
-            --accent-color: #3b82f6;
-            --accent-neon: #00f0ff;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --panel-bg: rgba(17, 24, 39, 0.85);
-            --border-color: rgba(59, 130, 246, 0.2);
+            --bg-dark: #090d16;
+            --card-bg: #131b2e;
+            --card-border: #1e293b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --success: #10b981;
+            --danger: #ef4444;
+            --chorus: #ec4899; /* 후렴구 전용 핫핑크 테마 */
+            --chorus-glow: rgba(236, 72, 153, 0.2);
+            --verse: #a855f7; /* 절(Verse) 전용 퍼플 테마 */
+            --verse-glow: rgba(168, 85, 247, 0.2);
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0; padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Pretendard', -apple-system, system-ui, sans-serif;
-            overflow: hidden; height: 100vh; display: flex; flex-direction: column;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Urbanist', 'Pretendard', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        /* 설정 화면 */
-        #setup-container {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #090d16; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 10; overflow-y: auto; padding: 20px 0;
+        /* ----------------------------------
+           [STEP 1] SETUP SCREEN (가사 추출 및 교정)
+        ------------------------------------- */
+        #setup-screen {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        #setup-container.hidden { transform: translateY(-100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        .setup-box { width: 90%; max-width: 750px; background: #111827; padding: 30px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
-        .file-zone { border: 2px dashed #3b82f6; padding: 30px; border-radius: 12px; cursor: pointer; background: #1f2937; text-align: center; margin-bottom: 20px; transition: all 0.3s; }
-        .file-zone:hover { border-color: var(--accent-neon); background: #253346; }
-        
-        .editor-list { max-height: 280px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px; }
-        .edit-card { display: flex; align-items: center; gap: 12px; background: #1f2937; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .edit-card img { width: 90px; height: 55px; object-fit: contain; background: #000; border-radius: 4px; }
-        .edit-card input.verse-prop { width: 60px; padding: 8px; background: #0f172a; color: #ff007f; border: 1px solid #ff007f; border-radius: 6px; text-align: center; font-weight: bold; }
-        .edit-card textarea.lyrics-editor { flex: 1; height: 45px; background: #0f172a; color: #fff; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; font-size: 0.9rem; resize: none; }
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
 
-        /* 발표 모드 */
-        #presentation-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; background: #000; }
-        #slide-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
 
-        /* 컨트롤 패널 */
-        #control-panel { padding: 15px 30px; display: flex; justify-content: center; align-items: center; gap: 15px; background: #0f172a; border-top: 1px solid var(--border-color); z-index: 5; }
-        button { background: #1f2937; color: white; border: 1px solid var(--border-color); padding: 10px 22px; font-size: 0.95rem; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
-        button:hover { background: #374151; border-color: var(--accent-neon); }
-        button.success { background: var(--success-color); border-color: var(--success-color); }
-        button.success:hover { background: #059669; }
-        button.warning { background: #d97706; border-color: #d97706; }
+        .header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            color: var(--text-main);
+        }
 
-        /* 모니터 HUD */
-        #debug-window { position: absolute; top: 20px; right: 20px; width: 300px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; font-size: 0.85rem; z-index: 5; backdrop-filter: blur(8px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        #debug-window h3 { margin: 0 0 12px 0; font-size: 0.95rem; color: var(--accent-neon); border-bottom: 1px solid rgba(59, 130, 246, 0.3); padding-bottom: 6px; }
-        .debug-item { margin-bottom: 10px; display: flex; flex-direction: column; gap: 3px; }
-        .debug-label { color: #94a3b8; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
-        #recognized-text { color: #f59e0b; font-style: italic; min-height: 35px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; }
-        #next-trigger-words { color: #06b6d4; font-weight: 500; background: rgba(6, 182, 212, 0.1); padding: 6px; border-radius: 4px; }
+        .header h1 span {
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
 
-        /* 숫자 패드 슬라이드 이동 HUD */
-        #jump-hud { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(239, 68, 68, 0.95); color: white; padding: 12px 28px; border-radius: 30px; font-size: 1.4rem; font-weight: bold; box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); display: none; z-index: 100; animation: pulse 1.5s infinite; border: 2px solid #fff; }
-        @keyframes pulse { 0% { opacity: 0.9; } 50% { opacity: 1; transform: translateX(-50%) scale(1.03); } 100% { opacity: 0.9; } }
+        .header p {
+            color: var(--text-muted);
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        /* 드래그 앤 드롭 업로드 구역 */
+        .upload-zone {
+            border: 2px dashed var(--accent);
+            background: rgba(56, 189, 248, 0.02);
+            border-radius: 20px;
+            padding: 60px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .upload-zone:hover {
+            background: rgba(56, 189, 248, 0.05);
+            border-color: var(--text-main);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.1);
+        }
+
+        .upload-zone i {
+            font-size: 3.5rem;
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+
+        .upload-zone h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .upload-zone p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        /* 교정 카드 리스트 */
+        #review-area {
+            margin-top: 30px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .review-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 20px;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        /* 후렴구 카드 하이라이트 스타일 */
+        .review-card.chorus-highlight {
+            border: 2px solid var(--chorus) !important;
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(236, 72, 153, 0.04) 100%);
+            box-shadow: 0 4px 20px var(--chorus-glow);
+        }
+
+        /* 절 번호 카드 하이라이트 스타일 */
+        .review-card.verse-highlight {
+            border: 2px solid var(--verse) !important;
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(168, 85, 247, 0.04) 100%);
+            box-shadow: 0 4px 20px var(--verse-glow);
+        }
+
+        .review-card .preview-box {
+            position: relative;
+            width: 100%;
+            height: 110px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+        }
+
+        .review-card .preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .review-card .preview-box .slide-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.85);
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            color: var(--accent);
+            font-weight: bold;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .review-card.chorus-highlight .preview-box .slide-badge {
+            color: var(--chorus) !important;
+            border-color: rgba(236, 72, 153, 0.3) !important;
+        }
+
+        .review-card.verse-highlight .preview-box .slide-badge {
+            color: var(--verse) !important;
+            border-color: rgba(168, 85, 247, 0.3) !important;
+        }
+
+        .review-card .edit-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .review-card .status-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .status-loading { color: var(--accent); }
+        .status-done { color: var(--success); }
+
+        .editor-inputs {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 15px;
+        }
+
+        .review-card input.attribute-input {
+            width: 100%;
+            height: 70px;
+            background: #090d16;
+            color: #facc15;
+            font-weight: bold;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 1rem;
+            text-align: center;
+            outline: none;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        .review-card textarea {
+            width: 100%;
+            height: 70px;
+            background: #090d16;
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            font-family: 'Pretendard', sans-serif;
+            transition: border-color 0.2s;
+        }
+
+        .review-card textarea:focus, .review-card input.attribute-input:focus {
+            border-color: var(--accent);
+        }
+
+        .review-card.chorus-highlight textarea:focus {
+            border-color: var(--chorus) !important;
+        }
+
+        .review-card.verse-highlight textarea:focus {
+            border-color: var(--verse) !important;
+        }
+
+        /* 우측 상단 배지 스타일 */
+        .chorus-badge {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: var(--chorus);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .verse-badge {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: var(--verse);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* ----------------------------------
+           [STEP 2] LIVE SCREEN (찬양 자동화 송출)
+        ------------------------------------- */
+        #live-screen {
+            display: none;
+            flex: 1;
+            background: #000;
+            position: relative;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #slide-view {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* 실시간 통합 모니터링 대시보드 */
+        #monitor {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            width: 330px;
+            background: rgba(19, 27, 46, 0.85);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 10;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* 현재 가사가 후렴구일 때 대시보드 라이브 효과 */
+        #monitor.chorus-active {
+            border-color: var(--chorus) !important;
+            box-shadow: 0 0 25px var(--chorus-glow) !important;
+        }
+
+        #monitor.verse-active {
+            border-color: var(--verse) !important;
+            box-shadow: 0 0 25px var(--verse-glow) !important;
+        }
+
+        .monitor-header {
+            font-weight: bold;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .monitor-header i {
+            color: var(--accent);
+        }
+
+        #monitor.chorus-active .monitor-header i {
+            color: var(--chorus) !important;
+        }
+
+        #monitor.verse-active .monitor-header i {
+            color: var(--verse) !important;
+        }
+
+        .monitor-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .monitor-label {
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .dot-off { background-color: var(--danger); box-shadow: 0 0 10px var(--danger); }
+        .dot-on { background-color: var(--success); box-shadow: 0 0 10px var(--success); }
+
+        .voice-box {
+            margin-top: 15px;
+            background: rgba(9, 13, 22, 0.6);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 55px;
+            color: #facc15;
+            font-weight: bold;
+            font-size: 0.95rem;
+            border: 1px solid rgba(250, 204, 21, 0.2);
+            word-break: break-all;
+        }
+
+        /* 슬라이드 고속 점프 사이버 HUD 오버레이 */
+        #jump-hud {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(9, 13, 22, 0.95);
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 40px var(--accent-glow);
+            border-radius: 20px;
+            padding: 30px 60px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            pointer-events: none; /* 클릭 차단 방지 */
+        }
+        #jump-hud .hud-title {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        #jump-hud #hud-number {
+            font-size: 5.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 25px var(--accent-glow);
+            line-height: 1;
+        }
+        #jump-hud .hud-tip {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        /* ----------------------------------
+           [STEP 3] BOTTOM CONTROLS & UTILS
+        ------------------------------------- */
+        .bottom-bar {
+            padding: 20px;
+            background: var(--card-bg);
+            border-top: 1px solid var(--card-border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            z-index: 20;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border-radius: 10px;
+            border: none;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.03);
+            border-color: var(--accent);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-dark);
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: var(--text-main);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .btn-warning {
+            background: #eab308;
+            color: var(--bg-dark);
+            box-shadow: 0 4px 15px rgba(234, 179, 8, 0.15);
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            filter: none !important;
+        }
+
+        /* 히든 캔버스 (전처리용) */
+        #preprocess-canvas {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-    <!-- [1단계] 설정 및 고정밀 가사 교정 에디터 -->
-    <div id="setup-container">
-        <div class="setup-box">
-            <h2 style="margin-top:0; color: var(--accent-neon); text-align:center;">AI 찬양 자동 인식 시스템 v3.0</h2>
-            <p style="color:#94a3b8; font-size:0.88rem; text-align:center; margin-bottom:20px;">
-                PPT에서 이미지로 내보낸 파일들을 넣어주세요. <br>
-                <span style="color:#60a5fa; font-weight:bold;">[인식률 업그레이드]: 악보 노이즈를 피해 하단 가사 영역만 타겟 크롭하여 텍스트를 추출합니다.</span>
-            </p>
-            
-            <div class="file-zone" onclick="document.getElementById('file-input').click()">
-                <span id="file-status">📂 여기에 찬양 슬라이드 이미지들을 드래그하거나 클릭하세요</span>
+    <!-- 가사 추출 및 에디터 화면 -->
+    <div id="setup-screen">
+        <div class="container">
+            <div class="header">
+                <h1>AI PRAISE MASTER <span>PRO v5.0</span></h1>
+                <p>악보 또는 가사 이미지를 업로드하면 AI가 실시간 가사 및 절수(Verse)와 후렴구를 자동 판별합니다.</p>
+            </div>
+
+            <!-- 파일 업로드 트리거 구역 -->
+            <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <h3>찬양 이미지 파일들을 선택하거나 여기에 드래그하세요</h3>
+                <p>PPT에서 [다른 이름으로 저장] → [PNG 파일]로 내보낸 전체 파일을 다중 선택하여 올리시면 좋습니다.</p>
                 <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
             </div>
 
-            <div class="editor-list" id="editor-list-container">
-                <!-- 파일 등록 시 AI가 추출한 가사 편집 카드가 여기에 생성됨 -->
-            </div>
+            <!-- 슬라이드별 AI 분석 및 가사 실시간 교정 영역 -->
+            <div id="review-area"></div>
 
-            <button id="btn-start" class="success" style="width:100%; justify-content:center; padding:14px; font-size:1.1rem;" disabled>가사 분석 및 준비 대기 중...</button>
+            <!-- 가사 교정 완료 후 실행 버튼 -->
+            <div style="text-align: center; margin-top: 40px; padding-bottom: 80px;">
+                <button id="btn-launch" class="btn btn-success" style="display:none; width:100%; justify-content:center; font-size:1.3rem; padding: 18px;">
+                    <i class="fa-solid fa-play"></i> 가사 교정 완료 및 시스템 시작
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- [2단계] 메인 뷰어 -->
-    <div id="presentation-container">
-        <img id="slide-image" src="" alt="라이브 악보 화면">
+    <!-- 라이브 화면 송출 영역 -->
+    <div id="live-screen">
+        <img id="slide-view" src="" alt="Live Slide View">
+        
+        <!-- 실시간 시스템 모니터 대시보드 -->
+        <div id="monitor">
+            <div class="monitor-header">
+                <span><i class="fa-solid fa-circle-nodes"></i> System Status</span>
+                <span id="system-time">00:00:00</span>
+            </div>
+            <div class="monitor-row">
+                <span class="monitor-label">마이크 상태</span>
+                <span id="mic-status"><span class="status-dot dot-off"></span> OFF</span>
+            </div>
+            <div class="monitor-row">
+                <span class="monitor-label">현재 슬라이드</span>
+                <span id="page-counter" style="color:var(--accent); font-weight:bold;">0 / 0</span>
+            </div>
+            <div class="monitor-row" id="chorus-monitor-row" style="display:none;">
+                <span class="monitor-label">속성</span>
+                <span style="color:var(--chorus); font-weight:bold;"><i class="fa-solid fa-music"></i> 후렴구(Chorus)</span>
+            </div>
+            <div class="monitor-row" id="verse-monitor-row" style="display:none;">
+                <span class="monitor-label">속성</span>
+                <span id="verse-monitor-label" style="color:var(--verse); font-weight:bold;"><i class="fa-solid fa-bookmark"></i> -</span>
+            </div>
+            <div class="monitor-row" style="margin-top: 10px; flex-direction: column;">
+                <span class="monitor-label" style="margin-bottom: 5px;"><i class="fa-solid fa-circle-right"></i> 다음 장 트리거 (현재 장 끝부분)</span>
+                <span id="next-trigger" style="color: #00eafe; font-weight: bold; font-size: 0.95rem;">-</span>
+            </div>
+            <div class="monitor-row" style="margin-top: 10px; flex-direction: column;">
+                <span class="monitor-label" style="margin-bottom: 5px;"><i class="fa-solid fa-arrows-spin"></i> 글로벌 점프 트리거 (각 장 첫부분)</span>
+                <span id="global-triggers" style="color: #a855f7; font-weight: bold; font-size: 0.85rem; max-height: 50px; overflow-y: auto;">-</span>
+            </div>
+            <div class="monitor-row" style="margin-top: 10px; flex-direction: column;">
+                <span class="monitor-label" style="margin-bottom: 5px;"><i class="fa-solid fa-microphone-lines"></i> 실시간 음성 분석 결과</span>
+                <div class="voice-box" id="voice-preview">음성인식을 활성화해주세요.</div>
+            </div>
+        </div>
 
         <!-- 슬라이드 고속 이동 HUD -->
-        <div id="jump-hud">🎯 이동 타겟 슬라이드 번호: <span id="jump-num"></span> (Enter 치면 이동)</div>
-
-        <!-- 모니터링 시스템 -->
-        <div id="debug-window">
-            <h3>SYSTEM STATUS</h3>
-            <div class="debug-item"><span class="debug-label">마이크 상태</span> <span id="stt-status" style="color:#ef4444; font-weight:bold;">🔴 꺼짐</span></div>
-            <div class="debug-item"><span class="debug-label">현재 슬라이드 위치</span> <span id="current-index-view" style="font-size:1.1rem; font-weight:bold;">0 / 0</span></div>
-            <div class="debug-item"><span class="debug-label">실시간 음성 인식 피드</span> <div id="recognized-text">소리 감지 대기 중...</div></div>
-            <div class="debug-item"><span class="debug-label">현재 장 전환 매칭 단어 (끝/첫)</span> <div id="next-trigger-words">-</div></div>
+        <div id="jump-hud">
+            <div class="hud-title"><i class="fa-solid fa-arrow-up-right-from-square"></i> 슬라이드 이동</div>
+            <div id="hud-number">0</div>
+            <div class="hud-tip">[Enter] 이동 | [Backspace] 지우기 | [Esc] 취소</div>
         </div>
     </div>
 
-    <!-- 하단 제어 바 -->
-    <div id="control-panel">
-        <button id="btn-setup-back" class="warning">📝 가사 재교정</button>
-        <button id="btn-prev">이전 (←)</button>
-        <button id="btn-stt" class="success">🎤 음성인식 시작</button>
-        <button id="btn-next">다음 (→)</button>
-        <button id="btn-projector" style="background:#4b5563; border-color:#6b7280;">📺 프로젝터 송출</button>
+    <!-- 하단 유틸리티 컨트롤 바 -->
+    <div class="bottom-bar">
+        <button class="btn btn-ghost" onclick="location.reload()"><i class="fa-solid fa-rotate-right"></i> 리셋</button>
+        <button class="btn btn-warning" id="btn-edit-back" style="display:none;"><i class="fa-solid fa-pen-to-square"></i> 가사 재교정</button>
+        <button class="btn btn-success" id="btn-projector" style="display:none;"><i class="fa-solid fa-desktop"></i> 📺 프로젝터 송출</button>
+        <button class="btn btn-ghost" id="btn-prev" disabled><i class="fa-solid fa-chevron-left"></i> 이전</button>
+        <button class="btn btn-primary" id="btn-mic-toggle" style="display:none;"><i class="fa-solid fa-microphone"></i> 음성 인식 시작</button>
+        <button class="btn btn-ghost" id="btn-next" disabled>다음 <i class="fa-solid fa-chevron-right"></i></button>
     </div>
+
+    <!-- 이미지 고정밀 전처리 처리를 위한 비가시 캔버스 -->
+    <canvas id="preprocess-canvas"></canvas>
 
     <script>
         let slidesData = [];
@@ -125,260 +614,449 @@
         let recognition;
         let isListening = false;
         let lastTriggerTime = 0;
+        let ocrWorker = null;
         let projectorWindow = null;
 
-        // 고속 슬라이드 점프 데이터 변수
+        // 슬라이드 고속 번호 점프용 버퍼 데이터
         let jumpBuffer = "";
         let jumpTimeout = null;
 
-        const setupContainer = document.getElementById('setup-container');
         const fileInput = document.getElementById('file-input');
-        const fileStatus = document.getElementById('file-status');
-        const editorListContainer = document.getElementById('editor-list-container');
-        const btnStart = document.getElementById('btn-start');
+        const reviewArea = document.getElementById('review-area');
+        const setupScreen = document.getElementById('setup-screen');
+        const liveScreen = document.getElementById('live-screen');
+        const slideView = document.getElementById('slide-view');
         
-        const slideImage = document.getElementById('slide-image');
+        const btnLaunch = document.getElementById('btn-launch');
         const btnPrev = document.getElementById('btn-prev');
         const btnNext = document.getElementById('btn-next');
-        const btnStt = document.getElementById('btn-stt');
-        const btnSetupBack = document.getElementById('btn-setup-back');
+        const btnMicToggle = document.getElementById('btn-mic-toggle');
+        const btnEditBack = document.getElementById('btn-edit-back');
         const btnProjector = document.getElementById('btn-projector');
         
-        const sttStatus = document.getElementById('stt-status');
-        const currentIndexView = document.getElementById('current-index-view');
-        const recognizedTextEl = document.getElementById('recognized-text');
-        const nextTriggerWordsEl = document.getElementById('next-trigger-words');
-        
-        const jumpHud = document.getElementById('jump-hud');
-        const jumpNum = document.getElementById('jump-num');
+        const voicePreview = document.getElementById('voice-preview');
+        const nextTrigger = document.getElementById('next-trigger');
+        const globalTriggers = document.getElementById('global-triggers');
+        const pageCounter = document.getElementById('page-counter');
+        const micStatus = document.getElementById('mic-status');
+        const monitorPanel = document.getElementById('monitor');
+        const chorusMonitorRow = document.getElementById('chorus-monitor-row');
+        const verseMonitorRow = document.getElementById('verse-monitor-row');
+        const verseMonitorLabel = document.getElementById('verse-monitor-label');
 
-        // [핵심] 가사 영역 타겟 크롭 전처리 함수
-        function cropLyricsArea(imageFile) {
+        const jumpHud = document.getElementById('jump-hud');
+        const hudNumber = document.getElementById('hud-number');
+
+        // 시스템 실시간 시계 연동
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('system-time').textContent = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        // 1. 고해상도 이미지 크롭(하단 35% 영역) 및 이진화/대비 극대화 전처리 로직
+        function preprocessImage(imgElement) {
             return new Promise((resolve) => {
-                const img = new Image();
-                img.src = URL.createObjectURL(imageFile);
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
+                const canvas = document.getElementById('preprocess-canvas');
+                const ctx = canvas.getContext('2d');
+                const width = imgElement.naturalWidth || imgElement.width;
+                const height = imgElement.naturalHeight || imgElement.height;
+                
+                // 가사가 주로 배치되는 악보 하단 35% 타겟 크롭(ROI)
+                const cropTop = height * 0.65;
+                const cropHeight = height * 0.35;
+
+                canvas.width = width;
+                canvas.height = cropHeight;
+                
+                ctx.drawImage(imgElement, 0, cropTop, width, cropHeight, 0, 0, width, cropHeight);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+
+                // 고정밀 이진화 임계값 적용
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i+1];
+                    const b = data[i+2];
+                    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
                     
-                    // 가사가 집중적으로 위치하는 악보 하단 35% 영역만 잘라내기 설계
-                    const cropTop = img.height * 0.65;
-                    const cropHeight = img.height * 0.35;
-                    
-                    canvas.width = img.width;
-                    canvas.height = cropHeight;
-                    
-                    // 이미지 그리기 및 정밀 이진화 전처리(Contrast Max)로 가로선 노이즈 감쇠
-                    ctx.drawImage(img, 0, cropTop, img.width, cropHeight, 0, 0, img.width, cropHeight);
-                    
-                    let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    let data = imgData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        let brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
-                        let v = (brightness > 130) ? 255 : 0; // 임계값 이진화
-                        data[i] = data[i+1] = data[i+2] = v;
-                    }
-                    ctx.putImageData(imgData, 0, 0);
-                    
-                    resolve(canvas.toDataURL());
-                };
+                    const finalColor = luma > 115 ? 255 : 0; 
+                    data[i] = finalColor;
+                    data[i+1] = finalColor;
+                    data[i+2] = finalColor;
+                }
+                ctx.putImageData(imgData, 0, 0);
+                resolve(canvas.toDataURL());
             });
         }
 
-        // 이미지 파일 선택 및 고정밀 OCR 일괄 처리
+        // 2. 다중 이미지 등록 및 큐 단위 OCR 작업 수행
         fileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
 
             files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-            fileStatus.textContent = `⏳ 최적화 가사 분석 엔진 로딩 중...`;
-            editorListContainer.innerHTML = "";
-            btnStart.disabled = true;
-
-            // OCR 최적화 설정 파라미터 세팅
-            const worker = await Tesseract.createWorker('kor');
-            await worker.setParameters({
-                tessedit_pageseg_mode: '6', // 단일 텍스트 블록 간주 가이드
-                tessedit_char_whitelist: ' 가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허고노도로모보소오조초코토포호구누두루무부수우주추쿠투푸후그느드르므브스의지치크트프히기니디리미비시이지치키티피히요야얘얘여유외와워위의각간갇갈감갑갓강갖같앞오오온올옴옵옹왕외우운울움웅워위유육율으은을음읍응의이인일임입잇있자잔잘잠잡잣장잦재쟁저전절점접젓정제조족존졸좀좁종좋좌죄주죽준줄줌중쥐즉즌즐즘즙증지직진질짐집짓징짜째쩌쪼쭈찌가사후렴절말씀주의예수크신사랑'
-            });
-
+            
+            reviewArea.innerHTML = '';
             slidesData = [];
-            let currentInferredVerse = "1절"; // 절수 추적 상속자
+            document.getElementById('drop-zone').style.display = 'none';
+            btnLaunch.style.display = 'block';
 
-            for (let i = 0; i < files.length; i++) {
-                fileStatus.textContent = `⏳ [${i + 1}/${files.length}] 가사 정밀 자르기 및 추출 중...`;
+            if (!ocrWorker) {
+                btnLaunch.disabled = true;
+                btnLaunch.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> AI 문자 추출 코어 초기화 중...`;
+                ocrWorker = await Tesseract.createWorker('kor');
                 
-                // 가사 영역만 타겟 크롭 가공된 이미지 생성
-                const processedImgDataUrl = await cropLyricsArea(files[i]);
-                
-                let detectedText = "";
-                try {
-                    const result = await worker.recognize(processedImgDataUrl);
-                    detectedText = result.data.text.replace(/\s+/g, ' ').trim();
-                } catch (err) {
-                    console.error(err);
-                }
-
-                // AI 절수 자동 감지 로직
-                const verseMatch = detectedText.match(/([1-5])\s*절/);
-                if (verseMatch) {
-                    currentInferredVerse = verseMatch[1] + "절";
-                } else if (detectedText.includes("후렴") || detectedText.includes("코러스")) {
-                    currentInferredVerse = "후렴";
-                }
-
-                slidesData.push({
-                    file: files[i],
-                    url: URL.createObjectURL(files[i]),
-                    verseProp: currentInferredVerse,
-                    rawText: detectedText
+                // Tesseract PSM 모드 최적화 및 한글 Whitelist 적용
+                await ocrWorker.setParameters({
+                    tessedit_pageseg_mode: '6', // 단일 텍스트 블록 간주 가이드
+                    tessedit_char_whitelist: ' 가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허고노도로모보소오조초코토포호구누두루무부수우주추쿠투푸후그느드르므브스의지치크트프히기니디리미비시이지치키티피히요야얘얘여유외와워위의각간갇갈감갑갓강갖같앞오오온올옴옵옹왕외우운울움웅워위유육율으은을음읍응의이인일임입잇있자잔잘잠잡잣장잦재쟁저전절점접젓정제조족존졸좀좁종좋좌죄주죽준줄줌중쥐즉즌즐즘즙증지직진질짐집짓징짜째쩌쪼쭈찌가사후렴절말씀주의예수크신사랑'
                 });
-
-                // UI 편집 카드 생성
-                const card = document.createElement('div');
-                card.className = 'edit-card';
-                card.innerHTML = `
-                    <img src="${slidesData[i].url}">
-                    <input type="text" class="verse-prop" value="${slidesData[i].verseProp}" placeholder="절수" data-index="${i}">
-                    <textarea class="lyrics-editor" data-index="${i}" placeholder="추출된 가사가 없습니다. 여기에 직접 입력해 주세요.">${slidesData[i].rawText}</textarea>
-                `;
-                editorListContainer.appendChild(card);
+                
+                btnLaunch.disabled = false;
+                btnLaunch.innerHTML = `<i class="fa-solid fa-play"></i> 가사 교정 완료 및 시스템 시작`;
             }
 
-            await worker.terminate();
-            fileStatus.textContent = `✅ 총 ${files.length}개의 슬라이드 분석 및 크롭 세팅 완료!`;
-            btnStart.disabled = false;
-            btnStart.textContent = "가사 교정 완료 및 시스템 시작";
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const objectURL = URL.createObjectURL(file);
+
+                const card = document.createElement('div');
+                card.className = 'review-card';
+                card.id = `card-${i}`;
+                card.innerHTML = `
+                    <div class="preview-box">
+                        <span class="slide-badge" id="badge-${i}">SLIDE ${i + 1}</span>
+                        <img src="${objectURL}" id="img-preview-${i}">
+                    </div>
+                    <div class="edit-box">
+                        <div class="status-label">
+                            <span>속성 및 가사 교정</span>
+                            <span class="status-loading" id="status-txt-${i}"><i class="fa-solid fa-spinner fa-spin"></i> AI 가사 읽는 중...</span>
+                        </div>
+                        <div class="editor-inputs">
+                            <input type="text" id="attr-input-${i}" class="attribute-input" placeholder="절수 (예: 1절)" value="">
+                            <textarea id="lyrics-input-${i}" placeholder="추출 중..."></textarea>
+                        </div>
+                    </div>
+                `;
+                reviewArea.appendChild(card);
+
+                const imgPreview = document.getElementById(`img-preview-${i}`);
+                imgPreview.onload = async () => {
+                    const processedDataUrl = await preprocessImage(imgPreview);
+                    
+                    try {
+                        const result = await ocrWorker.recognize(processedDataUrl);
+                        let text = result.data.text;
+
+                        // AI 절수(Verse) 자동 감지 로직
+                        let detectedVerse = null;
+                        const linesForVerse = text.split('\n');
+                        for (let line of linesForVerse) {
+                            const trimmed = line.trim();
+                            const match = trimmed.match(/^([1-9])(?:\s+|\.|$)/);
+                            if (match) {
+                                detectedVerse = match[1];
+                                break;
+                            }
+                        }
+
+                        text = text.replace(/[0-9]+장/g, '');
+                        text = text.replace(/[a-zA-Z]/g, '');
+                        
+                        // 감지된 절수 숫자 제거하여 가사 본문 극대화
+                        text = text.replace(/^\s*[1-9]\s+/, '');
+                        text = text.replace(/\n\s*[1-9]\s+/g, '\n');
+                        text = text.trim();
+
+                        const lines = text.split('\n')
+                                          .map(l => l.trim())
+                                          .filter(l => l.length > 1 && !l.includes('주의 말씀') && !l.includes('주의말씀'));
+
+                        const cleanText = lines.join(' ');
+                        const targetTextarea = document.getElementById(`lyrics-input-${i}`);
+                        const targetAttrInput = document.getElementById(`attr-input-${i}`);
+                        
+                        targetTextarea.value = cleanText;
+                        if (detectedVerse) {
+                            targetAttrInput.value = detectedVerse + "절";
+                        }
+
+                        document.getElementById(`status-txt-${i}`).className = 'status-done';
+                        document.getElementById(`status-txt-${i}`).innerHTML = `<i class="fa-solid fa-circle-check"></i> 추출 완료`;
+
+                        // 실시간 임시 배열 빌드
+                        slidesData[i] = {
+                            index: i,
+                            fileUrl: objectURL,
+                            rawText: cleanText,
+                            detectedVerse: detectedVerse ? detectedVerse + "절" : ""
+                        };
+
+                        // 사용자가 수동으로 가사나 속성을 타이핑해 고칠 때 실시간 싱크 처리
+                        targetTextarea.addEventListener('input', () => {
+                            slidesData[i].rawText = targetTextarea.value;
+                            checkAndClassifySlides();
+                        });
+
+                        targetAttrInput.addEventListener('input', () => {
+                            slidesData[i].detectedVerse = targetAttrInput.value;
+                            checkAndClassifySlides();
+                        });
+
+                        // 모든 슬라이드가 로드된 뒤 후렴 및 키워드 자동 처리 트리거링
+                        checkAndClassifySlides();
+                    } catch (err) {
+                        console.error(err);
+                        document.getElementById(`lyrics-input-${i}`).value = '';
+                        document.getElementById(`status-txt-${i}`).innerHTML = `추출 실패 (수동 입력 가능)`;
+                    }
+                };
+            }
         });
 
-        // 시스템 발표 모드 진입 및 키워드 생성
-        btnStart.addEventListener('click', () => {
-            if (slidesData.length === 0) return;
+        // 3. 지능형 가사 대조를 통한 자가 교정 및 '자동 후렴구(Chorus) 분류' 및 첫/끝 단어 추출
+        function checkAndClassifySlides() {
+            const activeCount = slidesData.filter(Boolean).length;
+            const targetCount = fileInput.files.length;
+            if (activeCount !== targetCount) return;
 
-            // 사용자가 수동 교정한 가사 데이터를 데이터셋에 최종 주입
-            const verseInputs = document.querySelectorAll('.verse-prop');
-            const textAreas = document.querySelectorAll('.lyrics-editor');
+            // 순수 텍스트 정밀 가공 및 후렴구(Chorus) 자가 판별 루프
+            for (let i = 0; i < slidesData.length; i++) {
+                const rawText = document.getElementById(`lyrics-input-${i}`).value.trim();
+                const compressedText = rawText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\-+\s]/g, "");
+                
+                slidesData[i].rawText = rawText;
+                slidesData[i].cleanText = compressedText;
+            }
 
-            slidesData.forEach((slide, i) => {
-                slide.verseProp = verseInputs[i].value.trim() || `${i+1}장`;
-                slide.rawText = textAreas[i].value.replace(/\s+/g, '').trim(); // 띄어쓰기 완전 압축 처리
+            // 후렴 분석: 1) 동일한 내용의 텍스트가 여러 슬라이드에서 중복으로 발견되거나, 2) '후렴' 키워드 매칭 시 판별
+            for (let i = 0; i < slidesData.length; i++) {
+                const currentText = slidesData[i].cleanText;
+                let isChorus = false;
 
-                // 음성 3글자 매칭 키워드 배열 구축
-                slide.firstKeyword = slide.rawText.substring(0, 3);
-                slide.lastKeyword = slide.rawText.substring(slide.rawText.length - 3);
-            });
+                if (currentText.length > 5) {
+                    for (let j = 0; j < slidesData.length; j++) {
+                        if (i !== j && slidesData[j].cleanText === currentText) {
+                            isChorus = true;
+                            break;
+                        }
+                    }
+                }
 
-            setupContainer.classList.add('hidden');
-            updateSlide(0);
+                if (slidesData[i].rawText.includes("후렴") || slidesData[i].rawText.includes("Chorus")) {
+                    isChorus = true;
+                }
+
+                slidesData[i].isChorus = isChorus;
+            }
+
+            // 절 번호(Verse) 순차적 전파 및 배지 렌더링
+            let currentVerse = "";
+            for (let i = 0; i < slidesData.length; i++) {
+                const userAttrValue = document.getElementById(`attr-input-${i}`).value.trim();
+                
+                if (userAttrValue) {
+                    currentVerse = userAttrValue;
+                    slidesData[i].detectedVerse = userAttrValue;
+                } else if (slidesData[i].detectedVerse) {
+                    currentVerse = slidesData[i].detectedVerse;
+                }
+
+                if (slidesData[i].isChorus) {
+                    slidesData[i].verseLabel = "후렴";
+                } else {
+                    slidesData[i].verseLabel = currentVerse;
+                }
+
+                const card = document.getElementById(`card-${i}`);
+                if (card) {
+                    card.classList.remove('chorus-highlight', 'verse-highlight');
+                    const oldBadge = card.querySelector('.chorus-badge, .verse-badge');
+                    if (oldBadge) oldBadge.remove();
+
+                    if (slidesData[i].isChorus) {
+                        card.classList.add('chorus-highlight');
+                        const badge = document.createElement('span');
+                        badge.className = 'chorus-badge';
+                        badge.innerHTML = `<i class="fa-solid fa-music"></i> 후렴구(Chorus)`;
+                        card.appendChild(badge);
+                    } else if (slidesData[i].verseLabel) {
+                        card.classList.add('verse-highlight');
+                        const badge = document.createElement('span');
+                        badge.className = 'verse-badge';
+                        badge.innerHTML = `<i class="fa-solid fa-bookmark"></i> ${slidesData[i].verseLabel}`;
+                        card.appendChild(badge);
+                    }
+
+                    const badgeTextEl = document.getElementById(`badge-${i}`);
+                    if (badgeTextEl) {
+                        badgeTextEl.innerHTML = `SLIDE ${i + 1}${slidesData[i].verseLabel ? ` (${slidesData[i].verseLabel})` : ''}`;
+                    }
+                }
+            }
+
+            // 첫 단어(글로벌 점프 트리거) & 마지막 단어(다음 장 이동 트리거) 분절 추출
+            for (let i = 0; i < slidesData.length; i++) {
+                const cleanText = slidesData[i].cleanText;
+                let firstWord = "";
+                let lastWord = "";
+
+                if (cleanText.length >= 3) {
+                    firstWord = cleanText.substring(0, 3);
+                    lastWord = cleanText.substring(cleanText.length - 3);
+                } else if (cleanText.length > 0) {
+                    firstWord = cleanText;
+                    lastWord = cleanText;
+                }
+
+                slidesData[i].firstWord = firstWord;
+                slidesData[i].lastWord = lastWord;
+            }
+        }
+
+        // 4. 교정 완료 및 발표 환경 부팅
+        btnLaunch.addEventListener('click', () => {
+            checkAndClassifySlides();
+
+            if (slidesData.length === 0) {
+                alert("분석 완료된 이미지가 존재하지 않습니다.");
+                return;
+            }
+
+            setupScreen.style.display = 'none';
+            liveScreen.style.display = 'flex';
+            
+            btnPrev.disabled = false;
+            btnNext.disabled = false;
+            btnMicToggle.style.display = 'flex';
+            btnEditBack.style.display = 'flex'; 
+            btnProjector.style.display = 'flex'; 
+
+            updateSlide(currentIndex);
         });
 
-        // 슬라이드 화면 전환 및 연동 처리
+        // 5. 슬라이드 상태 제어기 및 프로젝터 스크린 연동
         function updateSlide(index) {
             if (index < 0 || index >= slidesData.length) return;
             currentIndex = index;
 
-            const curSlide = slidesData[currentIndex];
-            slideImage.src = curSlide.url;
-            currentIndexView.textContent = `${currentIndex + 1} / ${slidesData.length} (${curSlide.verseProp})`;
+            slideView.src = slidesData[currentIndex].fileUrl;
+            pageCounter.innerHTML = `${currentIndex + 1} / ${slidesData.length}`;
 
-            // 대기중인 전환 키워드 모니터에 시각화
-            nextTriggerWordsEl.innerHTML = `
-                <span style='color:#ef4444;'>[끝]</span> ${curSlide.lastKeyword || '없음'} ➔ 다음장<br>
-                <span style='color:#a855f7;'>[글로벌 첫]</span> 각 장 시작 3글자 감지 시 해당 장 이동
-            `;
-
-            // 프로젝터 팝업 스크린 무지연 데이터 동기화 전송
+            // 프로젝터 보조 모니터 윈도우 동기화 처리
             if (projectorWindow && !projectorWindow.closed) {
-                const projImg = projectorWindow.document.getElementById('proj-img');
-                if (projImg) projImg.src = curSlide.url;
+                const projectorImg = projectorWindow.document.getElementById('projector-slide-img');
+                if (projectorImg) {
+                    projectorImg.src = slidesData[currentIndex].fileUrl;
+                }
             }
+
+            if (slidesData[currentIndex].isChorus) {
+                monitorPanel.className = 'chorus-active';
+                chorusMonitorRow.style.display = 'flex';
+                verseMonitorRow.style.display = 'none';
+            } else if (slidesData[currentIndex].verseLabel) {
+                monitorPanel.className = 'verse-active';
+                chorusMonitorRow.style.display = 'none';
+                verseMonitorRow.style.display = 'flex';
+                verseMonitorLabel.innerHTML = `<i class="fa-solid fa-bookmark"></i> ${slidesData[currentIndex].verseLabel}`;
+            } else {
+                monitorPanel.className = '';
+                chorusMonitorRow.style.display = 'none';
+                verseMonitorRow.style.display = 'none';
+            }
+
+            if (currentIndex < slidesData.length - 1) {
+                nextTrigger.textContent = slidesData[currentIndex].lastWord;
+            } else {
+                nextTrigger.textContent = "[최종 장]";
+            }
+
+            const triggerInfo = slidesData.map((s, idx) => {
+                const label = s.isChorus ? " [후렴]" : (s.verseLabel ? ` [${s.verseLabel}]` : "");
+                return `장 ${idx + 1}: ${s.firstWord}${label}`;
+            }).join(' | ');
+            globalTriggers.textContent = triggerInfo;
         }
 
-        function nextSlide() { if (currentIndex < slidesData.length - 1) updateSlide(currentIndex + 1); }
-        function prevSlide() { if (currentIndex > 0) updateSlide(currentIndex - 1); }
+        function nextSlide() {
+            if (currentIndex < slidesData.length - 1) updateSlide(currentIndex + 1);
+        }
 
-        // 수동 제어 버튼 바인딩
-        btnNext.addEventListener('click', () => { document.activeElement.blur(); nextSlide(); });
-        btnPrev.addEventListener('click', () => { document.activeElement.blur(); prevSlide(); });
-        btnSetupBack.addEventListener('click', () => {
-            document.activeElement.blur();
-            setupContainer.classList.remove('hidden');
-        });
+        function prevSlide() {
+            if (currentIndex > 0) updateSlide(currentIndex - 1);
+        }
 
-        // [프로젝터 송출] 독립 윈도우 생성 모듈
+        // 6. 독립된 프로젝터용 송출 스크린 (Popup Window Mode)
         btnProjector.addEventListener('click', () => {
-            document.activeElement.blur();
             if (projectorWindow && !projectorWindow.closed) {
                 projectorWindow.focus();
                 return;
             }
 
-            projectorWindow = window.open('', 'PraiseProjector', 'width=960,height=540,dependencies=yes,scrollbars=no');
+            // 메뉴바, 툴바, 상태바 없는 완벽한 전체화면용 팝업 실행
+            projectorWindow = window.open('', 'PraiseProjectorWindow', 'width=1280,height=720,scrollbars=no,resizable=yes');
+            
+            if (!projectorWindow) {
+                alert("크롬 주소창 우측에서 팝업창 차단을 '허용'으로 변경해 주세요!");
+                return;
+            }
+
             projectorWindow.document.write(`
-                <html>
+                <!DOCTYPE html>
+                <html lang="ko">
                 <head>
-                    <title>찬양 송출 스크린 (F11을 눌러 전체화면)</title>
+                    <meta charset="UTF-8">
+                    <title>AI Praise Master Pro - 프로젝터 송출 화면</title>
                     <style>
-                        body { margin: 0; padding: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-                        img { width: 100vw; height: 100vh; object-fit: fill; border: none; }
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            background-color: #000;
+                            height: 100vh;
+                            width: 100vw;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            overflow: hidden;
+                        }
+                        img {
+                            width: 100vw;
+                            height: 100vh;
+                            object-fit: fill; /* 여백 없이 대형 프로젝터 및 디스플레이에 완벽히 채우기 */
+                            border: none;
+                            display: block;
+                        }
                     </style>
                 </head>
                 <body>
-                    <img id="proj-img" src="${slidesData[currentIndex] ? slidesData[currentIndex].url : ''}">
+                    <img id="projector-slide-img" src="${slidesData[currentIndex].fileUrl}" alt="Worship Slide">
                 </body>
                 </html>
             `);
             projectorWindow.document.close();
         });
 
-        // 키보드 방향키 및 숫자패드 이동 핸들러 (포커스 꼬임 방지)
-        document.addEventListener('keydown', (e) => {
-            if (!setupContainer.classList.contains('hidden')) return;
+        // 7. 슬라이드 다이렉트 숫자 키패드 점프 HUD 엔진
+        function showJumpHud(numberString) {
+            hudNumber.textContent = numberString;
+            jumpHud.style.display = 'flex';
 
-            // 숫자 패드를 타이핑하는 경우 수집 거동
-            if (/^\d$/.test(e.key)) {
-                document.activeElement.blur(); // 활성화 포커스 해제 버그 차단
-                clearTimeout(jumpTimeout);
-                jumpBuffer += e.key;
-                jumpNum.textContent = jumpBuffer;
-                jumpHud.style.display = "block";
-
-                jumpTimeout = setTimeout(() => { cancelJumpMode(); }, 4000); // 4초 대기 시 취소
-                return;
-            }
-
-            // 숫자가 쌓인 상태에서 Enter 클릭 시 타겟 점프 실행
-            if (e.key === 'Enter' && jumpBuffer !== "") {
-                e.preventDefault();
-                e.stopPropagation();
-                const targetIdx = parseInt(jumpBuffer, 10) - 1;
-                if (targetIdx >= 0 && targetIdx < slidesData.length) {
-                    updateSlide(targetIdx);
-                } else {
-                    alert("해당 번호의 슬라이드가 존재하지 않습니다.");
-                }
-                cancelJumpMode();
-                return;
-            }
-
-            if (e.key === 'Escape') { cancelJumpMode(); return; }
-
-            // 기본 방향키 조작
-            if (e.key === 'ArrowRight' || e.key === ' ') { nextSlide(); }
-            if (e.key === 'ArrowLeft') { prevSlide(); }
-        });
-
-        function cancelJumpMode() {
-            jumpBuffer = "";
-            jumpHud.style.display = "none";
-            clearTimeout(jumpTimeout);
+            if (jumpTimeout) clearTimeout(jumpTimeout);
+            jumpTimeout = setTimeout(clearJumpHud, 4000); // 4초 무입력 시 자동 클리어
         }
 
-        // Web Speech API 기반 정밀 음성 모듈
+        function clearJumpHud() {
+            jumpHud.style.display = 'none';
+            jumpBuffer = "";
+        }
+
+        // 8. 음성 처리 및 지능형 3중 입체 감지 (구어체 절수 이동 / 글로벌 첫단어 / 로컬 끝단어)
         function initSpeechRecognition() {
-            window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!window.SpeechRecognition) {
-                alert("크롬 브라우저 혹은 엣지 브라우저를 이용하셔야 음성 제어가 연동됩니다.");
+                alert("크롬(Chrome) 및 엣지(Edge) 브라우저만 웹 마이크 제어 기능을 제공합니다.");
                 return;
             }
 
@@ -389,29 +1067,36 @@
 
             recognition.onstart = () => {
                 isListening = true;
-                sttStatus.textContent = "🟢 ON (음성 감지 중)";
-                sttStatus.style.color = "#10b981";
-                btnStt.textContent = "🛑 음성인식 중지";
-                btnStt.style.background = "#ef4444";
-            };
-
-            recognition.onend = () => {
-                if (isListening) {
-                    recognition.start(); // 무중단 지속 자동 러닝
-                } else {
-                    sttStatus.textContent = "🔴 꺼짐";
-                    sttStatus.style.color = "#ef4444";
-                    btnStt.textContent = "🎤 음성인식 시작";
-                    btnStt.style.background = "";
-                }
+                micStatus.innerHTML = `<span class="status-dot dot-on"></span> ON (작동 중)`;
+                btnMicToggle.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> 음성 인식 중지`;
+                btnMicToggle.classList.remove('btn-primary');
+                btnMicToggle.classList.add('btn-ghost');
+                voicePreview.textContent = "소리를 듣고 있습니다...";
             };
 
             recognition.onerror = (event) => {
                 console.error("STT 에러 발생:", event.error);
-                if (event.error === 'not-allowed') {
-                    alert("마이크 사용 권한이 거부되었습니다. 주소창 좌측 자물쇠 아이콘을 눌러 권한을 허용해 주세요.");
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     isListening = false;
                     recognition.stop();
+                    
+                    micStatus.innerHTML = `<span class="status-dot dot-off"></span> 권한 거부됨`;
+                    btnMicToggle.innerHTML = `<i class="fa-solid fa-microphone"></i> 음성 인식 시작`;
+                    btnMicToggle.classList.remove('btn-ghost');
+                    btnMicToggle.classList.add('btn-primary');
+                    voicePreview.textContent = "마이크 권한이 차단되었습니다. 주소창 왼쪽의 자물쇠 혹은 설정 버튼을 클릭하여 마이크 권한을 허용해 주세요.";
+                }
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    recognition.start();
+                } else {
+                    micStatus.innerHTML = `<span class="status-dot dot-off"></span> OFF`;
+                    btnMicToggle.innerHTML = `<i class="fa-solid fa-microphone"></i> 음성 인식 시작`;
+                    btnMicToggle.classList.remove('btn-ghost');
+                    btnMicToggle.classList.add('btn-primary');
+                    voicePreview.textContent = "인식이 비활성화되었습니다.";
                 }
             };
 
@@ -424,75 +1109,180 @@
                     else interimTranscript += event.results[i][0].transcript;
                 }
 
-                const speechInput = (finalTranscript || interimTranscript).replace(/\s+/g, ""); // 공백 압축 대조
-                if (!speechInput) return;
-                
-                recognizedTextEl.textContent = speechInput;
-                checkSpeechMatch(speechInput);
+                const cleanSpeech = (finalTranscript || interimTranscript).replace(/\s+/g, "");
+                voicePreview.textContent = cleanSpeech;
+
+                checkSpeechMatch(cleanSpeech);
             };
         }
 
-        // 3단계 입체 음성 판정 로직 (절수 이동 ➔ 마지막단어 다음장 ➔ 첫단어 점프)
+        // 지능형 3중 매칭 핵심 로직 (절수 구어체 감지 최우선 처리 적용)
         function checkSpeechMatch(speech) {
             const now = Date.now();
-            if (now - lastTriggerTime < 2000) return; // 2초 가동 안전 쿨다운
+            if (now - lastTriggerTime < 2000) return; // 2초 쿨다운
 
-            // [1순위] 구어체 절수 점프 감지
-            const targetVerse = parseVerseCommand(speech);
-            if (targetVerse) {
-                // 해당 절을 가진 최초의 슬라이드 탐색
-                for (let i = 0; i < slidesData.length; i++) {
-                    if (slidesData[i].verseProp === targetVerse) {
-                        lastTriggerTime = now;
-                        updateSlide(i);
-                        recognizedTextEl.textContent = `[절 점프 감지] ➔ ${targetVerse} 시작 구절로 워프`;
-                        return;
+            // [1순위] 구어체 절수 이동 감지 (예: "2절", "이절", "후렴" 등)
+            const verseKeywords = {
+                "1절": ["일절", "1절"],
+                "2절": ["이절", "2절"],
+                "3절": ["삼절", "3절"],
+                "4절": ["사절", "4절"],
+                "5절": ["오절", "5절"],
+                "후렴": ["후렴", "후렴구", "코러스"]
+            };
+
+            for (let targetLabel in verseKeywords) {
+                const matches = verseKeywords[targetLabel];
+                for (let matchWord of matches) {
+                    if (speech.includes(matchWord)) {
+                        let targetIndex = -1;
+                        for (let i = 0; i < slidesData.length; i++) {
+                            if (slidesData[i]) {
+                                const currentLabel = slidesData[i].isChorus ? "후렴" : (slidesData[i].verseLabel || "");
+                                if (currentLabel.replace(/\s+/g, "") === targetLabel) {
+                                    targetIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (targetIndex !== -1) {
+                            lastTriggerTime = now;
+                            updateSlide(targetIndex);
+                            voicePreview.textContent = `[절수 명령 감지] ${targetLabel} 첫 장으로 이동 완료`;
+                            return;
+                        }
                     }
                 }
             }
 
-            // [2순위] 현재 장의 마지막 단어가 들렸을 때 다음 장 자동 전환
+            // [2순위] 로컬 끝 단어 매칭 (현재 장 끝부분 가사 -> 다음 장 이동)
             const currentSlide = slidesData[currentIndex];
-            if (currentSlide.lastKeyword && speech.includes(currentSlide.lastKeyword)) {
+            if (currentSlide && currentSlide.lastWord && speech.includes(currentSlide.lastWord)) {
                 if (currentIndex < slidesData.length - 1) {
                     lastTriggerTime = now;
                     nextSlide();
-                    recognizedTextEl.textContent = `[다음장 전환 감지] 단어: ${currentSlide.lastKeyword}`;
+                    voicePreview.textContent = `[끝부분 매칭 → 다음 장] 감지: ${currentSlide.lastWord}`;
                     return;
                 }
             }
 
-            // [3순위] 전체 슬라이드를 대상으로 시작 구절이 들렸는지 글로벌 탐색
+            // [3순위] 글로벌 시작 단어 매칭 (다른 장의 가사 첫부분 -> 해당 장으로 즉시 점프)
             for (let i = 0; i < slidesData.length; i++) {
-                if (i === currentIndex) continue; // 현재 페이지는 스킵
-                const targetSlide = slidesData[i];
-                if (targetSlide.firstKeyword && speech.includes(targetSlide.firstKeyword)) {
+                if (i === currentIndex) continue;
+                const slide = slidesData[i];
+                if (slide && slide.firstWord && speech.includes(slide.firstWord)) {
                     lastTriggerTime = now;
                     updateSlide(i);
-                    recognizedTextEl.textContent = `[글로벌 점프 감지] ${i+1}번 장으로 점프: ${targetSlide.firstKeyword}`;
-                    break;
+                    voicePreview.textContent = `[시작부분 감지 → 장 이동] ${i + 1}장으로 전환: ${slide.firstWord}`;
+                    return;
                 }
             }
         }
 
-        // 음성 문자열을 규격화된 절 속성 데이터로 변환하는 서브 파서
-        function parseVerseCommand(speech) {
-            if (speech.includes("1절") || speech.includes("일절")) return "1절";
-            if (speech.includes("2절") || speech.includes("이절")) return "2절";
-            if (speech.includes("3절") || speech.includes("삼절")) return "3절";
-            if (speech.includes("4절") || speech.includes("사절")) return "4절";
-            if (speech.includes("5절") || speech.includes("오절")) return "5절";
-            if (speech.includes("후렴") || speech.includes("코러스") || speech.includes("후렴구")) return "후렴";
-            return null;
-        }
-
-        btnStt.addEventListener('click', () => {
+        // 9. 하단 제어 인터페이스 바인딩
+        btnMicToggle.addEventListener('click', () => {
             if (!recognition) initSpeechRecognition();
             if (isListening) {
                 isListening = false;
                 recognition.stop();
             } else {
                 recognition.start();
+            }
+        });
+
+        // 가사 재교정 버튼 클릭 리스너 (라이브 도중 다시 셋업창으로 복귀)
+        btnEditBack.addEventListener('click', () => {
+            if (isListening) {
+                isListening = false;
+                recognition.stop();
+            }
+
+            setupScreen.style.display = 'flex';
+            liveScreen.style.display = 'none';
+
+            btnPrev.disabled = true;
+            btnNext.disabled = true;
+            btnMicToggle.style.display = 'none';
+            btnEditBack.style.display = 'none';
+            btnProjector.style.display = 'none';
+        });
+
+        btnNext.addEventListener('click', () => {
+            if (document.activeElement) document.activeElement.blur();
+            nextSlide();
+        });
+        
+        btnPrev.addEventListener('click', () => {
+            if (document.activeElement) document.activeElement.blur();
+            prevSlide();
+        });
+
+        // 10. 전천후 키보드 이벤트 리스너 (포커스 가로채기 방지 적용)
+        document.addEventListener('keydown', (e) => {
+            if (liveScreen.style.display === 'flex') {
+                
+                // 10.1. 슬라이드 점프용 키패드 숫자 입력 감지 (0 ~ 9)
+                if (e.key >= '0' && e.key <= '9') {
+                    // 키 입력 시 현재 활성화된 브라우저 포커스(버튼 등)를 해제하여 오동작 완벽 차단!
+                    if (document.activeElement) document.activeElement.blur();
+                    
+                    jumpBuffer += e.key;
+                    showJumpHud(jumpBuffer);
+                    e.preventDefault();
+                    return;
+                }
+
+                // 10.2. 백스페이스(타이핑 수정)
+                if (e.key === 'Backspace' && jumpBuffer.length > 0) {
+                    if (document.activeElement) document.activeElement.blur();
+                    jumpBuffer = jumpBuffer.slice(0, -1);
+                    if (jumpBuffer.length === 0) {
+                        clearJumpHud();
+                    } else {
+                        showJumpHud(jumpBuffer);
+                    }
+                    e.preventDefault();
+                    return;
+                }
+
+                // 10.3. ESC (점프 입력 취소)
+                if (e.key === 'Escape') {
+                    clearJumpHud();
+                    e.preventDefault();
+                    return;
+                }
+
+                // 10.4. 엔터 입력 시 지정한 번호 슬라이드로 무지연 강제 전환
+                if (e.key === 'Enter') {
+                    if (jumpBuffer.length > 0) {
+                        // 브라우저가 포커스된 버튼을 한 번 더 누르는 기본 동작을 완벽히 차단
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (document.activeElement) document.activeElement.blur();
+
+                        const parsedIndex = parseInt(jumpBuffer, 10);
+                        if (!isNaN(parsedIndex) && parsedIndex > 0 && parsedIndex <= slidesData.length) {
+                            updateSlide(parsedIndex - 1);
+                        } else {
+                            alert(`존재하지 않는 번호입니다. 1번부터 ${slidesData.length}번 슬라이드 범위에서 입력해 주세요.`);
+                        }
+                        clearJumpHud();
+                        return;
+                    }
+                }
+
+                // 10.5. 기본 슬라이드 전환 키 (방향키 및 스페이스바)
+                if (e.key === 'ArrowRight' || e.key === ' ') {
+                    if (document.activeElement) document.activeElement.blur();
+                    nextSlide();
+                    e.preventDefault();
+                }
+                if (e.key === 'ArrowLeft') {
+                    if (document.activeElement) document.activeElement.blur();
+                    prevSlide();
+                    e.preventDefault();
+                }
             }
         });
     </script>
