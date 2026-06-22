@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4</title>
+    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.3</title>
+    <!-- 고대조 네온 테마 및 폰트 연동 -->
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
@@ -25,205 +26,1575 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: var(--bg-dark); color: var(--text-main); font-family: 'Urbanist', 'Pretendard', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Urbanist', 'Pretendard', sans-serif;
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
 
         /* [STEP 1] SETUP SCREEN */
-        #setup-screen { flex: 1; padding: 40px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 1050px; }
+        #setup-screen {
+            flex: 1; padding: 40px; overflow-y: auto; display: flex; flex-direction: column; align-items: center;
+        }
+        .container { width: 100%; max-width: 1050px; } /* 에디터 가시 범위 확보를 위해 전체 폭을 넓힘 */
         .header { text-align: center; margin-bottom: 30px; }
         .header h1 { font-size: 2.8rem; font-weight: 700; letter-spacing: -1px; color: var(--text-main); }
         .header h1 span { color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
         .header p { color: var(--text-muted); margin-top: 10px; font-size: 1.1rem; }
 
-        .conti-zone { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-        .conti-zone h3 { margin-bottom: 10px; font-size: 1.2rem; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+        .conti-zone {
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: 16px; padding: 25px; margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .conti-zone h3 { margin-bottom: 0px; font-size: 1.2rem; color: var(--accent); display: flex; align-items: center; gap: 8px; }
         .conti-input { width: 100%; height: 110px; background: #090d16; color: var(--text-main); border: 1px solid var(--card-border); border-radius: 10px; padding: 15px; font-size: 1rem; resize: none; outline: none; transition: 0.2s; font-family: inherit; line-height: 1.5; }
         .conti-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.1); }
 
-        .upload-zone { border: 2px dashed var(--accent); background: rgba(56, 189, 248, 0.02); border-radius: 20px; padding: 45px 30px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+        /* 컴팩트 변형 대응 업로드 드롭존 */
+        .upload-zone {
+            border: 2px dashed var(--accent); background: rgba(56, 189, 248, 0.02);
+            border-radius: 20px; padding: 45px 30px; text-align: center; cursor: pointer; transition: all 0.3s ease;
+        }
         .upload-zone:hover { background: rgba(56, 189, 248, 0.05); border-color: var(--text-main); }
-        .upload-zone.compact { padding: 15px 30px; border-radius: 12px; background: rgba(56, 189, 248, 0.04); display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
+        
+        /* 컴팩트 모드 스타일 정의 */
+        .upload-zone.compact {
+            padding: 15px 30px;
+            border-radius: 12px;
+            background: rgba(56, 189, 248, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .upload-zone.compact i { font-size: 1.5rem !important; margin-bottom: 0 !important; }
+        .upload-zone.compact h3 { font-size: 1rem !important; }
+        .upload-zone.compact p { display: none; }
 
         #review-area { margin-top: 30px; display: grid; gap: 20px; }
-        .review-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; display: grid; grid-template-columns: 320px 1fr; gap: 25px; align-items: start; position: relative; }
+        
+        /* 가사 교정 카드 - 16:9 슬라이드에 적합하도록 컬럼폭을 320px로 대폭 확장 */
+        .review-card {
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: 16px; padding: 20px; display: grid; grid-template-columns: 320px 1fr;
+            gap: 25px; align-items: start; position: relative; transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
         .review-card.chorus-highlight { border: 2px solid var(--chorus) !important; box-shadow: 0 4px 20px var(--chorus-glow); }
 
-        .preview-box { position: relative; width: 100%; height: 180px; border-radius: 12px; overflow: hidden; border: 1px solid var(--card-border); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; background-color: #05070c; }
-        .preview-box:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
-        .preview-box img { width: 100%; height: 100%; object-fit: contain; }
+        /* 확대 라이트박스 연동 고화질 와이드 프리뷰 박스 (320px X 180px 영화관 비율) */
+        .preview-box { 
+            position: relative; 
+            width: 100%; 
+            height: 180px; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            border: 1px solid var(--card-border); 
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+            background-color: #05070c;
+        }
+        .preview-box:hover {
+            transform: scale(1.02);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+        }
+        .preview-box::after {
+            content: '\f00e'; /* FontAwesome 돋보기 아이콘 */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(9, 13, 22, 0.85);
+            color: var(--accent);
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0;
+            transition: all 0.2s;
+            pointer-events: none;
+            font-size: 1.2rem;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        .preview-box:hover::after {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .preview-box img { width: 100%; height: 100%; object-fit: contain; background: #05070c; }
         .slide-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; color: var(--accent); font-weight: bold; z-index: 2; border: 1px solid rgba(56, 189, 248, 0.3); }
 
+        /* 에디터 인풋 필드 */
         .editor-inputs { display: grid; grid-template-columns: 160px 100px 1fr; gap: 15px; }
-        .song-title-input { width: 100%; height: 110px; background: #090d16; color: var(--accent); font-weight: bold; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; text-align: center; outline: none; }
-        .attribute-input { width: 100%; height: 110px; background: #090d16; color: #facc15; font-weight: bold; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; text-align: center; outline: none; }
-        .lyrics-editor { width: 100%; height: 110px; background: #090d16; color: var(--text-main); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; font-size: 1.1rem; resize: none; outline: none; line-height: 1.4; }
+        .song-title-input { width: 100%; height: 110px; background: #090d16; color: var(--accent); font-weight: bold; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; text-align: center; outline: none; transition: 0.2s; font-size: 1rem; }
+        .song-title-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.1); }
+        .attribute-input { width: 100%; height: 110px; background: #090d16; color: #facc15; font-weight: bold; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; text-align: center; outline: none; font-size: 1rem; }
+        .lyrics-editor { width: 100%; height: 110px; background: #090d16; color: var(--text-main); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; font-size: 1.1rem; resize: none; outline: none; transition: 0.2s; line-height: 1.4; }
+        .lyrics-editor:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.1); }
 
-        /* [STEP 2] LIVE/BOTTOM BAR */
+        /* [STEP 2] LIVE SCREEN */
         #live-screen { display: none; flex: 1; background: #000; position: relative; justify-content: center; align-items: center; }
         #slide-view { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        #monitor {
+            position: absolute; top: 25px; right: 25px; width: 330px;
+            background: rgba(19, 27, 46, 0.85); border: 1px solid var(--card-border);
+            border-radius: 16px; padding: 20px; backdrop-filter: blur(12px); z-index: 10;
+        }
+
+        .monitor-header { font-weight: bold; font-size: 0.95rem; padding-bottom: 12px; border-bottom: 1px solid var(--card-border); margin-bottom: 15px; display: flex; justify-content: space-between; }
+        .monitor-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; align-items: center; }
+        
+        /* 진행률 게이지 스타일 */
+        .progress-container { width: 100%; height: 8px; background: #090d16; border-radius: 4px; margin-top: 5px; overflow: hidden; border: 1px solid #1e293b; }
+        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #38bdf8, #10b981); transition: width 0.3s; }
+
+        /* 세트리스트 스크롤러 */
+        #monitor-setlist::-webkit-scrollbar { width: 4px; }
+        #monitor-setlist::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        #monitor-setlist::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 2px; }
+
+        .voice-box { margin-top: 15px; background: rgba(9, 13, 22, 0.6); border-radius: 8px; padding: 12px; min-height: 55px; color: #facc15; font-weight: bold; border: 1px solid rgba(250, 204, 21, 0.2); word-break: break-all; }
+
+        #jump-hud {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(9, 13, 22, 0.95); border: 2px solid var(--accent);
+            border-radius: 20px; padding: 30px 60px; text-align: center; z-index: 100; display: none;
+        }
+        #hud-number { font-size: 5.5rem; font-weight: 700; color: var(--accent); }
+
+        /* [STEP 3] BOTTOM BAR */
         .bottom-bar { padding: 20px; background: var(--card-bg); border-top: 1px solid var(--card-border); display: flex; justify-content: center; gap: 15px; z-index: 20; }
-        .btn { padding: 12px 28px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; color: white; transition: 0.2s; }
+        .btn { padding: 12px 28px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; color: white; }
         .btn-ghost { background: transparent; border: 1px solid var(--card-border); }
         .btn-primary { background: var(--accent); color: var(--bg-dark); }
         .btn-success { background: var(--success); }
         .btn-danger { background: var(--danger); }
         .btn-warning { background: #eab308; color: var(--bg-dark); }
-        
-        #image-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(9, 13, 22, 0.95); z-index: 2000; justify-content: center; align-items: center; }
-        #image-modal.active { display: flex; }
-        #modal-img { max-width: 90%; max-height: 85%; border: 2px solid var(--accent); border-radius: 12px; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* 이미지 상세 라이트박스 모달 */
+        #image-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(9, 13, 22, 0.95); z-index: 1000; justify-content: center; align-items: center;
+            backdrop-filter: blur(10px); opacity: 0; transition: opacity 0.25s ease;
+        }
+        #image-modal.active { display: flex; opacity: 1; }
+        .modal-content-wrapper { position: relative; max-width: 90%; max-height: 85%; display: flex; justify-content: center; align-items: center; }
+        #modal-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; border: 2px solid var(--accent); box-shadow: 0 0 30px rgba(56, 189, 248, 0.3); }
+        #close-modal { position: absolute; top: -45px; right: -15px; background: transparent; border: none; color: white; font-size: 2.2rem; cursor: pointer; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; transition: transform 0.2s; }
+        #close-modal:hover { transform: scale(1.1); color: var(--accent); }
+
+        /* 전체 가사 모아보기 드로어(Drawer) 레이아웃 */
+        #lyrics-drawer {
+            position: fixed;
+            top: 0;
+            right: -460px; /* 초기 숨김 상태 */
+            width: 440px;
+            height: 100vh;
+            background: rgba(13, 21, 37, 0.96);
+            border-left: 1px solid var(--card-border);
+            z-index: 1500;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(15px);
+            transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+        }
+        #lyrics-drawer.active {
+            right: 0;
+        }
+        .drawer-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(19, 27, 46, 0.9);
+        }
+        .drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .drawer-body::-webkit-scrollbar { width: 4px; }
+        .drawer-body::-webkit-scrollbar-track { background: transparent; }
+        .drawer-body::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 2px; }
+
+        .drawer-song-group {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+        }
+        .drawer-song-title {
+            color: var(--accent);
+            font-size: 1.15rem;
+            margin-bottom: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+        .drawer-lyric-item {
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            border: 1px solid transparent;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .drawer-lyric-item:hover {
+            background: rgba(56, 189, 248, 0.05);
+            border-color: rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .drawer-lyric-item.active-slide {
+            background: rgba(56, 189, 248, 0.12) !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+
+        /* 🌐 스마트 가사 가져오기 & 오토스플릿 배분 모달 */
+        #fetch-lyrics-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(9, 13, 22, 0.96); z-index: 1600; justify-content: center; align-items: center;
+            backdrop-filter: blur(12px); opacity: 0; transition: opacity 0.25s ease;
+        }
+        #fetch-lyrics-modal.active { display: flex; opacity: 1; }
+        .fetch-modal-content {
+            background: var(--card-bg); border: 2px solid var(--accent);
+            border-radius: 20px; padding: 30px; width: 90%; max-width: 620px;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);
+            display: flex; flex-direction: column; gap: 20px;
+        }
+        .fetch-modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .fetch-db-box { background: rgba(9, 13, 22, 0.5); padding: 15px; border-radius: 10px; border: 1px solid var(--card-border); line-height: 1.5; }
+        .fetch-textarea { width: 100%; height: 220px; background: #090d16; color: var(--text-main); border: 1px solid var(--card-border); border-radius: 10px; padding: 15px; font-size: 1rem; resize: none; outline: none; font-family: inherit; }
+        .fetch-textarea:focus { border-color: var(--accent); }
+
+        /* 모바일 반응형 대응 미디어 쿼리 */
+        @media (max-width: 768px) {
+            .review-card {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                padding: 15px;
+            }
+            .preview-box {
+                height: 180px;
+                width: 100%;
+            }
+            .editor-inputs {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .song-title-input, .attribute-input, .lyrics-editor {
+                height: 60px;
+            }
+            #lyrics-drawer {
+                width: 100%;
+                right: -100%;
+            }
+        }
     </style>
 </head>
 <body>
 
+    <!-- [STEP 1] SETUP SCREEN -->
     <div id="setup-screen">
         <div class="container">
             <div class="header">
-                <h1>AI PRAISE MASTER <span>PRO v7.4</span></h1>
-                <p>예배 준비 완료 후 프로젝트를 저장하고, 다음 예배 때 즉시 불러오세요.</p>
+                <h1>AI PRAISE MASTER <span>PRO v7.3</span></h1>
+                <p>예배 콘티 목록에 따라 개별 곡 가사를 스마트 자동 추출 및 분배하고, 지능형 자모 분석 엔진을 가동합니다.</p>
             </div>
             
             <div class="conti-zone">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3><i class="fa-solid fa-list-check"></i> 예배 콘티 및 슬라이드 수량 (제목 (수량))</h3>
-                    <button class="btn btn-warning" onclick="syncLyricsWithConti()" style="padding: 5px 15px;"><i class="fa-solid fa-rotate"></i> 수량 설정 반영</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <h3><i class="fa-solid fa-list-check"></i> 1. 예배 찬양 콘티 및 슬라이드 수량 입력 (곡명 뒤에 수량 기재)</h3>
+                    <button class="btn btn-warning" id="btn-sync-conti" style="padding: 6px 15px; font-size: 0.82rem; background: #eab308; color: var(--bg-dark);"><i class="fa-solid fa-rotate"></i> 🔄 수량 설정 반영</button>
                 </div>
-                <textarea id="conti-input" class="conti-input" placeholder="예시: 내 모습 이대로 (4)">1. 내 모습 이대로 (4)</textarea>
+                <textarea id="conti-input" class="conti-input" placeholder="예시:&#10;1. 내 모습 이대로 (4)&#10;2. 꽃들도 (2)&#10;3. 은혜로다 2">1. 내 모습 이대로 (4)&#10;2. 꽃들도 (2)&#10;3. 은혜로다 (2)</textarea>
             </div>
 
-            <!-- 세이브/로드 기능 버튼 -->
-            <div style="display: flex; gap: 15px; margin-bottom: 20px; justify-content: center;">
-                <button class="btn btn-primary" onclick="saveProject()"><i class="fa-solid fa-floppy-disk"></i> 프로젝트 저장</button>
-                <button class="btn btn-ghost" onclick="document.getElementById('load-file').click()"><i class="fa-solid fa-folder-open"></i> 프로젝트 불러오기</button>
-                <input type="file" id="load-file" accept=".praise" style="display:none;">
-            </div>
-
+            <!-- 컴팩트 가변 드롭존 바 -->
             <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-                <i class="fa-solid fa-file-image" style="font-size:3rem; color:var(--accent);"></i>
-                <h3 id="upload-title">이미지 선택 (이미지들을 드래그하여 추가하세요)</h3>
+                <i class="fa-solid fa-file-image" style="font-size:3rem; color:var(--accent); margin-bottom:15px; transition: all 0.2s;"></i>
+                <h3 id="upload-title">2. 정렬된 악보 슬라이드 이미지들을 선택해 주세요</h3>
+                <p style="color:var(--text-muted); font-size:0.9rem; margin-top:5px;">(추가 이미지를 드래그하여 이어서 올릴 수 있습니다)</p>
                 <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
             </div>
 
-            <div style="display: flex; gap: 15px; margin-top: 20px; justify-content: center;">
-                <button class="btn btn-primary" id="btn-add-manual"><i class="fa-solid fa-plus"></i> 슬라이드 직접 추가</button>
-                <button class="btn btn-ghost" onclick="location.reload()"><i class="fa-solid fa-trash-can"></i> 전체 초기화</button>
+            <!-- 하이브리드 수동추가 / 리셋 / 전체 가사 보기 제어부 -->
+            <div class="setup-controls" style="display: flex; gap: 12px; margin-top: 20px; margin-bottom: 25px; width: 100%; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-add-manual" style="background: var(--accent); color: var(--bg-dark); font-size: 1rem;"><i class="fa-solid fa-plus"></i> ➕ 슬라이드 직접 추가</button>
+                <button class="btn btn-warning" id="btn-open-drawer-setup" style="font-size: 1rem;"><i class="fa-solid fa-file-lines"></i> 📋 실시간 전체 가사 모아보기</button>
+                <button class="btn btn-ghost" id="btn-clear-all" style="font-size: 1rem; border-color: var(--card-border); color: var(--text-muted);"><i class="fa-solid fa-trash-can"></i> 🗑️ 전체 초기화</button>
             </div>
 
-            <div id="review-area"></div>
+            <!-- 슬라이드 교정 카드 구역 -->
+            <div id="review-area" style="width: 100%;"></div>
             
             <div style="text-align: center; margin-top: 40px; padding-bottom: 80px;">
                 <button id="btn-launch" class="btn btn-success" style="display:none; width:100%; justify-content:center; font-size:1.3rem; padding: 18px;">
-                    <i class="fa-solid fa-play"></i> 시스템 시작
+                    <i class="fa-solid fa-play"></i> 세트리스트 구성 완료 및 시스템 시작
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- [STEP 2] LIVE SCREEN -->
     <div id="live-screen">
         <img id="slide-view" src="">
+        <div id="monitor">
+            <div class="monitor-header"><span><i class="fa-solid fa-circle-nodes"></i> System Status</span><span id="system-time">00:00:00</span></div>
+            <div class="monitor-row"><span>마이크</span><span id="mic-status"><span class="status-dot dot-off" style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block; margin-right:5px;"></span> OFF</span></div>
+            <div class="monitor-row"><span>현재 송출 곡</span><span id="current-song-title" style="color:var(--accent); font-weight:bold;">-</span></div>
+            <div class="monitor-row"><span>슬라이드</span><span id="page-counter" style="color:var(--accent); font-weight:bold;">0 / 0</span></div>
+            
+            <div class="monitor-row" style="flex-direction: column; margin-top:10px;">
+                <div style="display:flex; justify-content:space-between; width:100%;">
+                    <span class="monitor-label">가창 진행률 (최소 70% 필요)</span>
+                    <span id="progress-text" style="font-weight:bold; color:var(--success);">0%</span>
+                </div>
+                <div class="progress-container"><div id="progress-bar" class="progress-bar"></div></div>
+            </div>
+
+            <div class="monitor-row" style="margin-top: 15px; flex-direction: column;">
+                <span class="monitor-label"><i class="fa-solid fa-circle-right"></i> 다음 장 트리거 (Lock 해제 대기)</span>
+                <span id="next-trigger" style="color: #00eafe; font-weight: bold; font-size: 0.95rem;">-</span>
+            </div>
+
+            <!-- 예배 찬양 콘티 목록 세트리스트 사이드바 HUD -->
+            <div class="monitor-row" style="flex-direction: column; margin-top:15px; border-top:1px solid var(--card-border); padding-top:12px;">
+                <span class="monitor-label" style="margin-bottom:6px; font-weight:bold; color:#facc15;"><i class="fa-solid fa-list-ul"></i> 예배 찬양 콘티 목록</span>
+                <div id="monitor-setlist" style="display:flex; flex-direction:column; gap:6px; max-height:110px; overflow-y:auto; padding-right:4px; width:100%;">
+                </div>
+            </div>
+
+            <div class="monitor-row" style="margin-top: 10px; flex-direction: column;">
+                <div class="voice-box" id="voice-preview">음성인식을 활성화해주세요.</div>
+            </div>
+        </div>
+
+        <div id="jump-hud"><div id="hud-number">0</div></div>
     </div>
 
     <!-- [STEP 3] BOTTOM BAR -->
     <div class="bottom-bar">
-        <button class="btn btn-ghost" onclick="location.reload()">나가기</button>
-        <button class="btn btn-ghost" id="btn-next">다음</button>
+        <button class="btn btn-ghost" onclick="location.reload()"><i class="fa-solid fa-rotate-right"></i> 리셋</button>
+        <button class="btn btn-warning" id="btn-edit-back" style="display:none;"><i class="fa-solid fa-pen-to-square"></i> 가사 재교정</button>
+        <button class="btn btn-warning" id="btn-open-drawer-live" style="display:none; background: #eab308; color: var(--bg-dark);"><i class="fa-solid fa-file-lines"></i> 전체 가사</button>
+        <button class="btn btn-success" id="btn-projector" style="display:none;"><i class="fa-solid fa-desktop"></i> 📺 프로젝터 송출</button>
+        <button class="btn btn-ghost" id="btn-prev" disabled>이전</button>
+        <button class="btn btn-primary" id="btn-mic-toggle" style="display:none;">🎙️ 음성 인식 시작</button>
+        <button class="btn btn-ghost" id="btn-next" disabled>다음</button>
     </div>
 
-    <div id="image-modal" onclick="this.classList.remove('active')">
-        <div class="modal-content-wrapper"><img id="modal-img" src=""></div>
+    <!-- [IMAGE LIGHTBOX MODAL] -->
+    <div id="image-modal">
+        <div class="modal-content-wrapper">
+            <img id="modal-img" src="">
+            <button id="close-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- [FULL LYRICS DRAWER PANEL] -->
+    <div id="lyrics-drawer">
+        <div class="drawer-header">
+            <h3 style="color: var(--accent); margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-file-lines"></i> 전체 가사 흐름판
+            </h3>
+            <button id="close-drawer" style="background: transparent; border: none; color: white; font-size: 1.6rem; cursor: pointer; display: flex; align-items: center;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="drawer-body" id="drawer-content">
+            <!-- JavaScript가 실시간으로 데이터를 가공 주입합니다. -->
+        </div>
+    </div>
+
+    <!-- [🌐 스마트 가사 가져오기 & 오토스플릿 배분 모달] -->
+    <div id="fetch-lyrics-modal">
+        <div class="fetch-modal-content">
+            <div class="fetch-modal-header">
+                <h3 id="fetch-modal-title" style="color: var(--accent); font-weight: bold;"><i class="fa-solid fa-cloud-arrow-down"></i> 가사 가져오기 및 분배</h3>
+                <button onclick="closeFetchLyricsModal()" style="background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="fetch-db-box" id="fetch-db-status"></div>
+            <textarea class="fetch-textarea" id="fetch-lyrics-text" placeholder="여기에 전체 가사를 직접 붙여넣거나 DB의 가사를 편집해 주세요."></textarea>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-ghost" onclick="closeFetchLyricsModal()">취소</button>
+                <button class="btn btn-warning" id="btn-apply-fetch" style="background: #eab308; color: var(--bg-dark);"><i class="fa-solid fa-circle-check"></i> 가사 적용 및 분배</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        let slidesData = [];
+        // 초성, 중성, 종성 매핑 테이블
+        const CHOSEONG = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+        const JUNGSEONG = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+        const JONGSEONG = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 
-        // 데이터 저장
-        async function saveProject() {
-            const dataToSave = {
-                conti: document.getElementById('conti-input').value,
-                slides: await Promise.all(slidesData.map(async s => ({
-                    ...s,
-                    data: await blobToBase64(s.fileUrl)
-                })))
-            };
-            const blob = new Blob([JSON.stringify(dataToSave)], {type: 'application/json'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'praise_project.praise';
-            a.click();
+        // [핵심] 한글 가사를 음절 단위가 아닌 자모(phoneme) 단위로 부드럽게 해체하는 분석 함수
+        function decomposeHangulToJamo(str) {
+            let result = "";
+            for (let i = 0; i < str.length; i++) {
+                const code = str.charCodeAt(i);
+                if (code >= 44032 && code <= 55203) {
+                    const sIndex = code - 44032;
+                    const c = Math.floor(sIndex / 588);
+                    const ju = Math.floor((sIndex % 588) / 28);
+                    const jo = sIndex % 28;
+                    result += CHOSEONG[c] + JUNGSEONG[ju] + JONGSEONG[jo];
+                } else {
+                    result += str[i];
+                }
+            }
+            return result.replace(/\s+/g, ""); // 공백 압축 제거
         }
 
-        // 데이터 불러오기
-        document.getElementById('load-file').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const project = JSON.parse(event.target.result);
-                document.getElementById('conti-input').value = project.conti;
-                slidesData = await Promise.all(project.slides.map(async s => ({
-                    ...s,
-                    fileUrl: await base64ToBlobUrl(s.data)
-                })));
-                rebuildReviewArea();
-            };
-            reader.readAsText(e.target.files[0]);
+        // [핵심] 자모 수준에서 문자들의 기하학적 발음 형태 거리를 측정하는 Levenshtein 알고리즘
+        function getLevenshteinDistance(a, b) {
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1, // 변형
+                            Math.min(
+                                matrix[i][j - 1] + 1, // 삽입
+                                matrix[i - 1][j] + 1  // 삭제
+                            )
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        // [핵심] 음향 환경 잡음 속에서도 유사 자모가 감지되었는지 판별하는 슬라이딩 퍼지 검사기 (유사성 임계치 73%)
+        function checkPhoneticFuzzyMatch(speech, target, threshold = 0.73) {
+            const speechJamo = decomposeHangulToJamo(speech);
+            const targetJamo = decomposeHangulToJamo(target);
+
+            if (speechJamo.includes(targetJamo)) return true; // 완전 포함 시 초고속 무지연 통과
+
+            const len = targetJamo.length;
+            if (speechJamo.length < len) return false;
+
+            // 윈도우 슬라이드를 돌려 부분 구간 유사도 채점
+            for (let i = 0; i <= speechJamo.length - len; i++) {
+                const sub = speechJamo.substring(i, i + len);
+                const distance = getLevenshteinDistance(sub, targetJamo);
+                const similarity = 1 - (distance / len);
+                if (similarity >= threshold) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        let slidesData = [];
+        let currentIndex = 0;
+        let recognition;
+        let isListening = false;
+        let lastTriggerTime = 0;
+        let projectorWindow = null;
+        let jumpBuffer = "";
+        let jumpTimeout = null;
+
+        // 가창 진행률 채점을 위한 전방위 세트 자료구조
+        let currentSlideKeywordsSet = new Set();
+        let detectedKeywordsSet = new Set();
+        let currentProgress = 0;
+
+        // 찬양 콘티 가변 매칭 데이터베이스 (가장 자주 부르는 찬양 11곡 수록)
+        const onlineLyricsDatabase = {
+            "내모습이대로": [
+                { verse: "1절", text: "내 모습 이대로 사랑하시네" },
+                { verse: "1절", text: "연약함 그대로 사랑하시네" },
+                { verse: "후렴", text: "나의 모든 발걸음 인도하시네" },
+                { verse: "후렴", text: "주님만 예배하게 하소서" }
+            ],
+            "주이름찬양": [
+                { verse: "1절", text: "주 이름 찬양 풍요로운 땅에서" },
+                { verse: "1절", text: "거친 광야 같은 열방 가운데서도" },
+                { verse: "후렴", text: "찬양 받으시기 합당한 주님" },
+                { verse: "후렴", text: "축복 주실 때 찬양하리라" }
+            ],
+            "은혜로다": [
+                { verse: "1절", text: "시작된 우리들의 연약함 속에" },
+                { verse: "1절", text: "하나님의 은혜가 흘러 넘치네" },
+                { verse: "후렴", text: "은혜로다 주님의 은혜" },
+                { verse: "후렴", text: "한량없는 주님의 은혜" }
+            ],
+            "꽃들도": [
+                { verse: "1절", text: "이곳에 생명 샘 솟아나네" },
+                { verse: "1절", text: "눈물 골짝 지나갈 때에" },
+                { verse: "후렴", text: "꽃들도 구름도 바람도 넓은 바다도" },
+                { verse: "후렴", text: "찬양하라 찬양하라 예수를" }
+            ],
+            "원하고바라고기도합니다": [
+                { verse: "1절", text: "이 세상을 살아가는 동안에" },
+                { verse: "1절", text: "나의 힘을 의지할 수 없으니" },
+                { verse: "후렴", text: "하나님의 꿈이 나의 비전이 되고" },
+                { verse: "후렴", text: "예수님의 성품이 나의 인격이 되고" }
+            ],
+            "아무것도두려워말라": [
+                { verse: "1절", text: "아무것도 두려워 말라 주 나의 하나님이 지키시네" },
+                { verse: "1절", text: "놀라지 마라 겁내지 마라 주님 너를 지키시네" },
+                { verse: "후렴", text: "내 영혼이 확정되고 확정되었사오니" },
+                { verse: "후렴", text: "믿음의 눈을 들어 주를 바라봅니다" }
+            ],
+            "주품에": [
+                { verse: "1절", text: "주 품에 품으소서 능력의 팔로 덮으소서" },
+                { verse: "후렴", text: "거친 파도 날 향해 와도 주와 함께 날아오르리" },
+                { verse: "후렴", text: "폭풍 가운데 나의 영혼 잠잠하게 주를 보리라" }
+            ],
+            "예배합니다": [
+                { verse: "1절", text: "완전하신 나의 주 의의 길로 인도하소서" },
+                { verse: "1절", text: "행하신 모든 일 주님의 영광 찬양합니다" },
+                { verse: "후렴", text: "예배합니다 찬양합니다 주님만 날 다스리소서" }
+            ],
+            "시간을뚫고": [
+                { verse: "1절", text: "시간을 뚫고 이 땅에 오신 우리 없는 하늘 원치 않아" },
+                { verse: "1절", text: "그토록 우리를 사랑하사 친히 낮아지신 분" },
+                { verse: "후렴", text: "임마누엘 우리와 함께하시네" },
+                { verse: "후렴", text: "가장 거룩한 이름 예수 예수" }
+            ],
+            "시선": [
+                { verse: "1절", text: "내게로부터 눈을 들어 주를 보기 시작할 때" },
+                { verse: "1절", text: "주의 일을 보겠네 모든 시선을 주님께 드리고" },
+                { verse: "후렴", text: "살아계신 하나님을 느낄 때 내 삶은 주의 역사가 되네" }
+            ],
+            "빛으로비추시네": [
+                { verse: "1절", text: "어두운 날들이 지나고 주님의 밝은 빛이 비추네" },
+                { verse: "후렴", text: "빛으로 비추시네 슬픔을 기쁨으로 바꾸시네" }
+            ]
         };
 
-        // Helpers
-        async function blobToBase64(url) {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const reviewArea = document.getElementById('review-area');
+        const setupScreen = document.getElementById('setup-screen');
+        const liveScreen = document.getElementById('live-screen');
+        const slideView = document.getElementById('slide-view');
+        const btnLaunch = document.getElementById('btn-launch');
+        const btnMicToggle = document.getElementById('btn-mic-toggle');
+        const btnProjector = document.getElementById('btn-projector');
+        const voicePreview = document.getElementById('voice-preview');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        // 전체 가사 드로어 관련 바인딩 엘리먼트
+        const lyricsDrawer = document.getElementById('lyrics-drawer');
+        const drawerContent = document.getElementById('drawer-content');
+        const btnOpenDrawerSetup = document.getElementById('btn-open-drawer-setup');
+        const btnOpenDrawerLive = document.getElementById('btn-open-drawer-live');
+        const btnCloseDrawer = document.getElementById('close-drawer');
+
+        setInterval(() => { document.getElementById('system-time').textContent = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        // 브라우저 얼럿을 전면 방어하고 UX 일관성을 살려주는 세련된 토스트 알림 기능
+        function showNotification(message, type = 'success') {
+            let toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+                background: ${type === 'success' ? 'var(--success)' : type === 'danger' ? 'var(--danger)' : '#eab308'};
+                color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: bold; z-index: 2000;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0; transition: all 0.3s ease;
+                display: flex; align-items: center; gap: 8px; font-size: 0.95rem; pointer-events: none;
+            `;
+            let icon = type === 'success' ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-triangle-exclamation"></i>';
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+            }, 50);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 2500);
+        }
+
+        // 콘티 가사 매치 파서 (찬양 제목 뒤에 괄호나 공백으로 숫자를 입력할 시 슬라이드 분할수량 파싱 추가)
+        function fetchOnlineLyricsForConti() {
+            const lines = document.getElementById('conti-input').value.split('\n');
+            let accumulatedLyrics = [];
+
+            lines.forEach(line => {
+                let cleaned = line.replace(/^[0-9]+[\.\s\-]+/g, "").trim(); // "1. " 또는 "1 " 등의 번호포맷 제거
+                if (!cleaned) return;
+
+                // 정규식을 통해 "꽃들도 (3)", "내모습이대로 4", "은혜로다 [2]" 등 수량 패턴 파악
+                let countMatch = cleaned.match(/(.*?)\s*[\(\[\{]?\s*(\d+)\s*[\)\]\}]?\s*$/);
+                let title = cleaned;
+                let specifiedCount = null;
+
+                if (countMatch) {
+                    title = countMatch[1].trim();
+                    specifiedCount = parseInt(countMatch[2]);
+                }
+
+                // 데이터베이스 유사도 검색 진행
+                let matchedKey = Object.keys(onlineLyricsDatabase).find(key => {
+                    let normKey = key.replace(/\s+/g, "");
+                    let normTitle = title.replace(/\s+/g, "");
+                    return normTitle.includes(normKey) || normKey.includes(normTitle);
+                });
+
+                let dbLyrics = [];
+                let songName = matchedKey || title;
+
+                if (matchedKey) {
+                    dbLyrics = onlineLyricsDatabase[matchedKey];
+                } else {
+                    dbLyrics = [
+                        { verse: "1절", text: `[${title}] 가사 내용을 직접 입력하세요.` }
+                    ];
+                }
+
+                // 수량 배분 타겟 지정 (입력하지 않았거나 비정상 값이면 기본 데이터베이스 수량 준용)
+                let slideCount = specifiedCount;
+                if (!slideCount || slideCount <= 0) {
+                    slideCount = dbLyrics.length;
+                }
+
+                // 바구니 분할 균등 배분 배정 알고리즘 기동 (N개의 데이터라인을 K개의 슬라이드로 밸런싱 병합)
+                let buckets = Array.from({ length: slideCount }, () => []);
+                for (let i = 0; i < dbLyrics.length; i++) {
+                    let bucketIndex = Math.min(Math.floor(i * slideCount / dbLyrics.length), slideCount - 1);
+                    buckets[bucketIndex].push(dbLyrics[i]);
+                }
+
+                // 구성된 슬라이드 청크 데이터들을 수집 누적
+                for (let s = 0; s < slideCount; s++) {
+                    let chunk = buckets[s];
+                    let chunkText = "";
+                    let chunkVerse = "1절";
+
+                    if (chunk.length > 0) {
+                        chunkText = chunk.map(item => item.text).join('\n');
+                        chunkVerse = chunk[0].verse;
+                    } else {
+                        chunkText = `[${songName}] 추가 파트 가사 편집`;
+                        chunkVerse = "추가";
+                    }
+
+                    accumulatedLyrics.push({
+                        songTitle: songName,
+                        verse: chunkVerse,
+                        text: chunkText
+                    });
+                }
             });
+
+            return accumulatedLyrics;
         }
 
-        async function base64ToBlobUrl(base64) {
-            const response = await fetch(base64);
-            const blob = await response.blob();
-            return URL.createObjectURL(blob);
+        // 슬라이드 추가 시 1080p 고화질 PPT 캔버스 엔진 빌더
+        function drawTextSlide(title, verse, lyrics) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1920; canvas.height = 1080;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
+            grad.addColorStop(0, '#090d16');
+            grad.addColorStop(0.5, '#05070c');
+            grad.addColorStop(1, '#111827');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 1920, 1080);
+
+            const radGrad = ctx.createRadialGradient(960, 540, 50, 960, 540, 800);
+            radGrad.addColorStop(0, 'rgba(56, 189, 248, 0.08)');
+            radGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = radGrad;
+            ctx.fillRect(0, 0, 1920, 1080);
+
+            ctx.textAlign = 'center';
+            
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
+            ctx.font = 'bold 36px "Pretendard", -apple-system, sans-serif';
+            ctx.fillText(title || "새 찬양곡", 960, 100);
+
+            if (verse) {
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.8)';
+                ctx.font = 'bold 28px "Pretendard", sans-serif';
+                ctx.fillText(verse, 960, 150);
+            }
+
+            const lines = lyrics.split('\n').filter(line => line.trim() !== "");
+            let fontSize = 64;
+            if (lines.length > 4) fontSize = 48;
+            if (lines.length > 6) fontSize = 38;
+            ctx.font = `bold ${fontSize}px "Pretendard", sans-serif`;
+            
+            const startY = 540 - ((lines.length - 1) * (fontSize * 0.7));
+
+            lines.forEach((line, index) => {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetX = 4;
+                ctx.shadowOffsetY = 4;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(line.trim(), 960, startY + (index * (fontSize * 1.4)));
+            });
+
+            ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+            return canvas.toDataURL();
         }
 
-        // 기존 렌더링 함수 유지
-        function rebuildReviewArea() {
-            document.getElementById('review-area').innerHTML = '';
-            slidesData.forEach((slide, i) => addSlideCardDOM(i, slide.fileUrl, slide.songTitle, slide.verseLabel, slide.rawText, slide.isManual));
-            btnLaunch.style.display = 'block';
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+            
+            toggleCompactDropzone(true);
+
+            const startIdx = slidesData.length;
+            const derivedLyricsList = fetchOnlineLyricsForConti();
+
+            for (let i = 0; i < files.length; i++) {
+                const globalIdx = startIdx + i;
+                const objectURL = URL.createObjectURL(files[i]);
+                
+                let matchedTemplate = derivedLyricsList[globalIdx] || { songTitle: "", verse: "", text: "가사를 입력하세요." };
+
+                slidesData.push({
+                    index: globalIdx,
+                    fileUrl: objectURL,
+                    rawText: matchedTemplate.text,
+                    songTitle: matchedTemplate.songTitle,
+                    verseLabel: matchedTemplate.verse,
+                    isManual: false
+                });
+
+                addSlideCardDOM(globalIdx, objectURL, matchedTemplate.songTitle, matchedTemplate.verse, matchedTemplate.text, false);
+            }
+            checkAndClassifySlides();
+            fileInput.value = ''; 
+        });
+
+        // 드롭존 리스너들
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--text-main)';
+            dropZone.style.background = 'rgba(56, 189, 248, 0.08)';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = 'var(--accent)';
+            dropZone.style.background = 'rgba(56, 189, 248, 0.02)';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--accent)';
+            dropZone.style.background = 'rgba(56, 189, 248, 0.02)';
+            
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (!files.length) return;
+            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+
+            toggleCompactDropzone(true);
+            const startIdx = slidesData.length;
+            const derivedLyricsList = fetchOnlineLyricsForConti();
+
+            for (let i = 0; i < files.length; i++) {
+                const globalIdx = startIdx + i;
+                const objectURL = URL.createObjectURL(files[i]);
+                let matchedTemplate = derivedLyricsList[globalIdx] || { songTitle: "", verse: "", text: "가사를 입력하세요." };
+
+                slidesData.push({
+                    index: globalIdx,
+                    fileUrl: objectURL,
+                    rawText: matchedTemplate.text,
+                    songTitle: matchedTemplate.songTitle,
+                    verseLabel: matchedTemplate.verse,
+                    isManual: false
+                });
+
+                addSlideCardDOM(globalIdx, objectURL, matchedTemplate.songTitle, matchedTemplate.verse, matchedTemplate.text, false);
+            }
+            checkAndClassifySlides();
+        });
+
+        function toggleCompactDropzone(isCompact) {
+            if (isCompact) {
+                dropZone.className = 'upload-zone compact';
+                document.getElementById('upload-title').innerText = '📂 여기에 추가 이미지를 드롭하거나 클릭하여 덧붙이기 업로드';
+                btnLaunch.style.display = 'block';
+            } else {
+                dropZone.className = 'upload-zone';
+                document.getElementById('upload-title').innerText = '2. 정렬된 악보 슬라이드 이미지들을 선택해 주세요';
+                btnLaunch.style.display = 'none';
+            }
         }
 
+        // 슬라이드 수동 생성 모듈
+        document.getElementById('btn-add-manual').addEventListener('click', () => {
+            toggleCompactDropzone(true);
+
+            const i = slidesData.length;
+            const initialSong = slidesData[i - 1]?.songTitle || "새 찬양곡";
+            const initialVerse = "1절";
+            const initialText = "여기에 새 가사 내용을 입력하세요.";
+
+            const generatedUrl = drawTextSlide(initialSong, initialVerse, initialText);
+
+            slidesData.push({
+                index: i,
+                fileUrl: generatedUrl,
+                rawText: initialText,
+                songTitle: initialSong,
+                verseLabel: initialVerse,
+                isManual: true
+            });
+
+            addSlideCardDOM(i, generatedUrl, initialSong, initialVerse, initialText, true);
+            checkAndClassifySlides();
+        });
+
+        // 16:9 320x180 프리뷰 카드 구조 탑재
         function addSlideCardDOM(i, url, songTitle, verse, text, isManual) {
-            const div = document.createElement('div');
-            div.className = 'review-card';
-            div.innerHTML = `
-                <div class="preview-box" onclick="document.getElementById('modal-img').src='${url}'; document.getElementById('image-modal').classList.add('active')">
+            const card = document.createElement('div');
+            card.className = 'review-card'; card.id = `card-${i}`;
+            
+            const selectOptions = Object.keys(onlineLyricsDatabase).map(songKey => {
+                return `<optgroup label="${songKey}">` + 
+                    onlineLyricsDatabase[songKey].map((item, localIdx) => {
+                        return `<option value="${songKey}|${localIdx}">${item.verse} - ${item.text.substring(0, 15)}...</option>`;
+                    }).join('') + `</optgroup>`;
+            }).join('');
+
+            card.innerHTML = `
+                <div class="preview-box">
+                    <span class="slide-badge" id="badge-${i}">SLIDE ${i + 1}</span>
                     <img src="${url}" id="img-p-${i}">
                 </div>
-                <div class="editor-inputs">
-                    <input type="text" value="${songTitle}" class="song-title-input" oninput="slidesData[${i}].songTitle=this.value">
-                    <input type="text" value="${verse}" class="attribute-input" oninput="slidesData[${i}].verseLabel=this.value">
-                    <textarea class="lyrics-editor" oninput="slidesData[${i}].rawText=this.value">${text}</textarea>
+                <div class="edit-box" style="flex: 1; width: 100%;">
+                    <div class="status-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; min-height: 28px;">
+                        <span style="font-size:0.85rem; font-weight:bold; color:${isManual ? '#ff007f' : 'var(--accent)'}">
+                            ${isManual ? '✏️ 수동 생성 슬라이드 (16:9 와이드펙트)' : '예배 콘티 가사 매칭'}
+                        </span>
+                        
+                        <!-- 찬양 콘티별 스마트 가사 불러오기 컨테이너 (첫 슬라이드에만 생성) -->
+                        <div id="fetch-lyrics-container-${i}"></div>
+
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-ghost" onclick="searchLyricsOnWeb('${songTitle || ''}')" style="padding: 5px 12px; font-size: 0.78rem; border-radius:6px; font-weight:600; border-color:var(--accent); color:var(--accent);"><i class="fa-solid fa-magnifying-glass"></i> 🔍 웹 가사 검색</button>
+                            <button class="btn btn-danger" onclick="deleteSlide(${i})" style="padding: 5px 12px; font-size: 0.78rem; border-radius:6px; background:var(--danger); font-weight:600;"><i class="fa-solid fa-trash"></i> 삭제</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; width: 100%;">
+                        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: bold; white-space: nowrap;">🎯 개별 구절 매칭 템플릿:</span>
+                        <select id="sel-${i}" style="flex: 1; background: #0f172a; color: #38bdf8; border: 1px solid var(--card-border); padding: 7px; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <option value="">-- 직접 가사 설정 또는 템플릿 선택 --</option>
+                            ${selectOptions}
+                        </select>
+                    </div>
+
+                    <div class="editor-inputs">
+                        <input type="text" id="sg-${i}" class="song-title-input" placeholder="곡 제목" value="${songTitle || ''}">
+                        <input type="text" id="at-${i}" class="attribute-input" placeholder="절수" value="${verse || ''}">
+                        <textarea id="ly-${i}" class="lyrics-editor" placeholder="가사를 입력하세요.">${text || ''}</textarea>
+                    </div>
                 </div>
             `;
-            document.getElementById('review-area').appendChild(div);
+            reviewArea.appendChild(card);
+
+            const previewBox = card.querySelector('.preview-box');
+            previewBox.addEventListener('click', () => {
+                const imgEl = document.getElementById(`img-p-${i}`);
+                if (imgEl) openImageModal(imgEl.src);
+            });
+
+            const selector = document.getElementById(`sel-${i}`);
+            selector.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (!val) return;
+                const [songKey, localIdx] = val.split('|');
+                const matchedItem = onlineLyricsDatabase[songKey][parseInt(localIdx)];
+                if (matchedItem) {
+                    document.getElementById(`sg-${i}`).value = songKey;
+                    document.getElementById(`at-${i}`).value = matchedItem.verse;
+                    document.getElementById(`ly-${i}`).value = matchedItem.text;
+                    handleSlideInputChange(i);
+                }
+            });
+
+            document.getElementById(`sg-${i}`).addEventListener('input', () => handleSlideInputChange(i));
+            document.getElementById(`at-${i}`).addEventListener('input', () => handleSlideInputChange(i));
+            document.getElementById(`ly-${i}`).addEventListener('input', () => handleSlideInputChange(i));
         }
 
-        fileInput.addEventListener('change', (e) => {
-            Array.from(e.target.files).forEach(f => {
-                const url = URL.createObjectURL(f);
-                slidesData.push({ fileUrl: url, songTitle: "새 찬양", verseLabel: "1절", rawText: "", isManual: false });
-                addSlideCardDOM(slidesData.length-1, url, "새 찬양", "1절", "", false);
+        function searchLyricsOnWeb(defaultTitle) {
+            let query = defaultTitle.trim();
+            if (!query) {
+                query = prompt("검색할 찬양 곡명을 입력해 주세요:", "내 모습 이대로");
+                if (!query) return;
+            }
+            const searchUrl = `https://search.naver.com/search.naver?query=${encodeURIComponent(query + ' 가사')}`;
+            window.open(searchUrl, '_blank');
+        }
+
+        function openImageModal(src) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-img');
+            modalImg.src = src;
+            modal.classList.add('active');
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.remove('active');
+        }
+
+        document.getElementById('close-modal').addEventListener('click', closeImageModal);
+        document.getElementById('image-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('image-modal')) {
+                closeImageModal();
+            }
+        });
+
+        function deleteSlide(idx) {
+            slidesData.splice(idx, 1);
+            rebuildReviewArea();
+        }
+
+        function rebuildReviewArea() {
+            reviewArea.innerHTML = '';
+            slidesData.forEach((slide, i) => {
+                slide.index = i;
+                addSlideCardDOM(i, slide.fileUrl, slide.songTitle, slide.verseLabel, slide.rawText, slide.isManual);
             });
-            btnLaunch.style.display = 'block';
+            checkAndClassifySlides();
+            
+            if (slidesData.length === 0) {
+                toggleCompactDropzone(false);
+            }
+            if (lyricsDrawer.classList.contains('active')) {
+                updateFullLyricsView();
+            }
+        }
+
+        function handleSlideInputChange(i) {
+            const songTitle = document.getElementById(`sg-${i}`).value.trim();
+            const verse = document.getElementById(`at-${i}`).value.trim();
+            const text = document.getElementById(`ly-${i}`).value.trim();
+            
+            slidesData[i].rawText = text;
+            slidesData[i].songTitle = songTitle;
+            slidesData[i].verseLabel = verse;
+            
+            if (slidesData[i].isManual) {
+                const newUrl = drawTextSlide(songTitle, verse, text);
+                slidesData[i].fileUrl = newUrl;
+                document.getElementById(`img-p-${i}`).src = newUrl;
+            }
+            checkAndClassifySlides();
+            if (lyricsDrawer.classList.contains('active')) {
+                updateFullLyricsView();
+            }
+        }
+
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+            slidesData = [];
+            reviewArea.innerHTML = '';
+            toggleCompactDropzone(false);
+            fileInput.value = '';
+            if (lyricsDrawer.classList.contains('active')) {
+                updateFullLyricsView();
+            }
         });
 
-        document.getElementById('btn-add-manual').addEventListener('click', () => {
-            slidesData.push({ fileUrl: '', songTitle: "새 찬양", verseLabel: "1절", rawText: "", isManual: true });
-            addSlideCardDOM(slidesData.length-1, '', "새 찬양", "1절", "", true);
-            btnLaunch.style.display = 'block';
+        function checkAndClassifySlides() {
+            let currentSong = "";
+            let currentVerse = "";
+
+            // 1단계: 기본적인 값 취합 및 상속 정렬
+            for (let i = 0; i < slidesData.length; i++) {
+                if (!slidesData[i]) continue;
+                
+                const songInput = document.getElementById(`sg-${i}`);
+                const attrInput = document.getElementById(`at-${i}`);
+                const lyricInput = document.getElementById(`ly-${i}`);
+
+                let songValue = songInput ? songInput.value.trim() : (slidesData[i].songTitle || "");
+                let verseValue = attrInput ? attrInput.value.trim() : (slidesData[i].verseLabel || "");
+                let lyricValue = lyricInput ? lyricInput.value.trim() : (slidesData[i].rawText || "");
+
+                if (songValue !== "") {
+                    currentSong = songValue;
+                } else if (currentSong !== "") {
+                    if (songInput) songInput.placeholder = currentSong;
+                }
+                slidesData[i].songTitle = currentSong || "지정되지 않은 찬양";
+
+                if (verseValue !== "") {
+                    currentVerse = verseValue;
+                } else if (currentVerse !== "") {
+                    if (attrInput) attrInput.placeholder = currentVerse;
+                }
+
+                slidesData[i].rawText = lyricValue;
+                const compressed = lyricValue.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\-+\s]/g, "");
+                slidesData[i].cleanText = compressed;
+                
+                let isChorus = lyricValue.includes("후렴") || slidesData.some((s, idx) => idx !== i && s && s.cleanText === compressed && compressed.length > 5);
+                slidesData[i].isChorus = isChorus;
+                slidesData[i].verseLabel = isChorus ? "후렴" : (currentVerse || "1절");
+
+                const card = document.getElementById(`card-${i}`);
+                if (card) card.classList.toggle('chorus-highlight', isChorus);
+                
+                const badge = document.getElementById(`badge-${i}`);
+                if (badge) badge.innerText = `SLIDE ${i+1} [${slidesData[i].songTitle}] (${slidesData[i].verseLabel})`;
+                
+                slidesData[i].firstWord = compressed.length >= 4 ? compressed.substring(0, 4) : compressed;
+                slidesData[i].lastWord = compressed.substring(compressed.length - 3);
+
+                const words = lyricValue.split(/\s+/).filter(w => w.length >= 2);
+                slidesData[i].keywordsSet = new Set(words);
+            }
+
+            // 2단계: 찬양별 첫 번째 슬라이드 감지하여 [🌐 가사 가져오기] 전용 버튼 동적 마운트
+            let seenSongs = new Set();
+            for (let i = 0; i < slidesData.length; i++) {
+                const container = document.getElementById(`fetch-lyrics-container-${i}`);
+                if (container) {
+                    container.innerHTML = ''; // 우선 비우기
+                }
+            }
+
+            for (let i = 0; i < slidesData.length; i++) {
+                let songName = slidesData[i].songTitle;
+                if (songName && !seenSongs.has(songName) && songName !== "지정되지 않은 찬양") {
+                    seenSongs.add(songName);
+                    const container = document.getElementById(`fetch-lyrics-container-${i}`);
+                    if (container) {
+                        // 세련된 네온 오렌지 컬러의 [가사 가져오기] 버튼 생성
+                        container.innerHTML = `
+                            <button class="btn btn-warning" onclick="openFetchLyricsModal('${songName.replace(/'/g, "\\'")}', ${i})" style="padding: 4px 10px; font-size: 0.75rem; border-radius:6px; font-weight:600; background:#eab308; color:#000;">
+                                <i class="fa-solid fa-cloud-arrow-down"></i> 🌐 가사 가져오기
+                            </button>
+                        `;
+                    }
+                }
+            }
+        }
+
+        // 곡별 전용 가사 모달 열기
+        let currentFetchContext = { songTitle: "", startIdx: -1 };
+
+        function openFetchLyricsModal(songTitle, startIdx) {
+            currentFetchContext = { songTitle, startIdx };
+
+            // 해당 찬양명으로 시작되는 연속된 슬라이드 묶음 계산
+            let songSlides = [];
+            for (let i = startIdx; i < slidesData.length; i++) {
+                if (slidesData[i] && slidesData[i].songTitle === songTitle) {
+                    songSlides.push(i);
+                } else {
+                    break; 
+                }
+            }
+
+            const modal = document.getElementById('fetch-lyrics-modal');
+            const modalTitle = document.getElementById('fetch-modal-title');
+            const dbStatus = document.getElementById('fetch-db-status');
+            const lyricsArea = document.getElementById('fetch-lyrics-text');
+            const applyBtn = document.getElementById('btn-apply-fetch');
+
+            modalTitle.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> [${songTitle}] 스마트 가사 연동`;
+            lyricsArea.value = '';
+
+            // DB 검색 매핑 (띄어쓰기 가변 무시)
+            let matchKey = Object.keys(onlineLyricsDatabase).find(key => {
+                let normKey = key.replace(/\s+/g, "");
+                let normTitle = songTitle.replace(/\s+/g, "");
+                return normKey.includes(normTitle) || normTitle.includes(normKey);
+            });
+
+            if (matchKey) {
+                dbStatus.innerHTML = `
+                    <span style="color: var(--success); font-weight:bold;"><i class="fa-solid fa-circle-check"></i> 로컬 가사 라이브러리에 찬양이 존재합니다!</span><br>
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">아래 가사 문단이 해당 곡에 부여된 <strong style="color: var(--accent);">${songSlides.length}개</strong>의 슬라이드에 오토스플릿 배분됩니다.</span>
+                `;
+                lyricsArea.value = onlineLyricsDatabase[matchKey].map(line => line.text).join('\n');
+            } else {
+                dbStatus.innerHTML = `
+                    <span style="color: #eab308; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> 외부 데이터 검색 & 가사 붙여넣기 모드</span><br>
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">라이브러리에 찬양이 없습니다. 웹(🔍 검색)에서 복사한 가사 전체를 아래 입력창에 붙여넣어 주세요. 해당 곡 소속 <strong style="color: var(--accent);">${songSlides.length}개</strong>의 슬라이드에 문단 균등 분할 배분됩니다.</span>
+                `;
+            }
+
+            applyBtn.onclick = () => {
+                let enteredText = lyricsArea.value.trim();
+                if (!enteredText) {
+                    showNotification("가사 템플릿을 완성하거나 텍스트를 입력해 주세요.", "danger");
+                    return;
+                }
+                distributeLyricsToSongSlides(enteredText, songSlides, songTitle);
+                closeFetchLyricsModal();
+            };
+
+            modal.classList.add('active');
+        }
+
+        function closeFetchLyricsModal() {
+            const modal = document.getElementById('fetch-lyrics-modal');
+            modal.classList.remove('active');
+        }
+
+        // 입력받은 가사 원본을 슬라이드 수량에 따라 균등 분배하는 알고리즘
+        function distributeLyricsToSongSlides(fullText, slideIndices, songTitle) {
+            let lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!lines.length) return;
+
+            let numSlides = slideIndices.length;
+            // 슬라이드당 가질 행수 계산
+            let linesPerSlide = Math.max(1, Math.ceil(lines.length / numSlides));
+
+            slideIndices.forEach((slideIdx, index) => {
+                let startLine = index * linesPerSlide;
+                let endLine = startLine + linesPerSlide;
+                let slideLines = lines.slice(startLine, endLine);
+                let slideText = slideLines.join('\n');
+
+                // DOM 동기화
+                const lyricInput = document.getElementById(`ly-${slideIdx}`);
+                if (lyricInput) {
+                    lyricInput.value = slideText;
+                }
+                slidesData[slideIdx].rawText = slideText;
+
+                // 만약 수동 생성 슬라이드라면 1080p PPT 캔버스도 실시간 동적 재렌더링
+                if (slidesData[slideIdx].isManual) {
+                    let verse = document.getElementById(`at-${slideIdx}`)?.value.trim() || slidesData[slideIdx].verseLabel;
+                    let newUrl = drawTextSlide(songTitle, verse, slideText);
+                    slidesData[slideIdx].fileUrl = newUrl;
+                    const imgP = document.getElementById(`img-p-${slideIdx}`);
+                    if (imgP) imgP.src = newUrl;
+                }
+            });
+
+            checkAndClassifySlides();
+            showNotification(`[${songTitle}] 가사가 ${numSlides}개의 슬라이드에 완벽 분배되었습니다!`, "success");
+            
+            if (lyricsDrawer.classList.contains('active')) {
+                updateFullLyricsView();
+            }
+        }
+
+        // 전체 가사 드로어 제어 함수
+        function openLyricsDrawer() {
+            updateFullLyricsView();
+            lyricsDrawer.classList.add('active');
+        }
+
+        function closeLyricsDrawer() {
+            lyricsDrawer.classList.remove('active');
+        }
+
+        function updateFullLyricsView() {
+            drawerContent.innerHTML = "";
+            if (slidesData.length === 0) {
+                drawerContent.innerHTML = `<div style="color: var(--text-muted); text-align: center; padding-top: 50px;">등록된 슬라이드가 없습니다.<br>먼저 악보 이미지를 추가하거나 슬라이드를 작성해주세요.</div>`;
+                return;
+            }
+
+            let currentSongGroup = "";
+            let currentGroupDiv = null;
+
+            slidesData.forEach((slide, idx) => {
+                if (slide.songTitle !== currentSongGroup) {
+                    currentSongGroup = slide.songTitle;
+                    
+                    currentGroupDiv = document.createElement('div');
+                    currentGroupDiv.className = 'drawer-song-group';
+                    
+                    const groupTitle = document.createElement('div');
+                    groupTitle.className = 'drawer-song-title';
+                    groupTitle.innerHTML = `<i class="fa-solid fa-music"></i> ${currentSongGroup}`;
+                    
+                    currentGroupDiv.appendChild(groupTitle);
+                    drawerContent.appendChild(currentGroupDiv);
+                }
+
+                const item = document.createElement('div');
+                const isCurrent = (liveScreen.style.display === 'flex' && idx === currentIndex);
+                item.className = `drawer-lyric-item ${isCurrent ? 'active-slide' : ''}`;
+                
+                // 클릭 시 양방향 점프 제어 연동 (에디터에선 스크롤 이동, 라이브에선 즉시 송출)
+                item.onclick = () => {
+                    if (liveScreen.style.display === 'flex') {
+                        updateSlide(idx);
+                    } else {
+                        const targetCard = document.getElementById(`card-${idx}`);
+                        if (targetCard) {
+                            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            targetCard.style.borderColor = "var(--accent)";
+                            targetCard.style.boxShadow = "0 0 25px rgba(56, 189, 248, 0.4)";
+                            setTimeout(() => {
+                                targetCard.style.borderColor = slide.isChorus ? "var(--chorus)" : "var(--card-border)";
+                                targetCard.style.boxShadow = slide.isChorus ? "0 4px 20px var(--chorus-glow)" : "none";
+                            }, 1500);
+                        }
+                    }
+                };
+
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px; align-items:center;">
+                        <span style="font-size:0.75rem; color:var(--text-muted); font-weight:bold;">SLIDE ${idx + 1}</span>
+                        <span style="font-size:0.75rem; background:${slide.isChorus ? 'var(--chorus-glow)' : 'var(--verse-glow)'}; color:${slide.isChorus ? 'var(--chorus)' : 'var(--verse)'}; padding:2px 6px; border-radius:4px; font-weight:bold;">${slide.verseLabel}</span>
+                    </div>
+                    <div style="font-size:0.92rem; line-height:1.45; white-space:pre-line; color:${isCurrent ? 'var(--text-main)' : 'rgba(248, 250, 252, 0.85)'};">${slide.rawText}</div>
+                `;
+                currentGroupDiv.appendChild(item);
+            });
+        }
+
+        btnOpenDrawerSetup.addEventListener('click', openLyricsDrawer);
+        btnOpenDrawerLive.addEventListener('click', openLyricsDrawer);
+        btnCloseDrawer.addEventListener('click', closeLyricsDrawer);
+
+        btnLaunch.addEventListener('click', () => {
+            checkAndClassifySlides();
+            setupScreen.style.display = 'none'; liveScreen.style.display = 'flex';
+            document.getElementById('btn-prev').disabled = false; document.getElementById('btn-next').disabled = false;
+            btnMicToggle.style.display = 'flex'; btnProjector.style.display = 'flex';
+            document.getElementById('btn-edit-back').style.display = 'flex';
+            btnOpenDrawerLive.style.display = 'flex';
+            btnOpenDrawerSetup.style.display = 'none';
+            updateSlide(0);
         });
 
-        btnLaunch.onclick = () => { setupScreen.style.display = 'none'; liveScreen.style.display = 'flex'; };
+        function updateSlide(index) {
+            if (index < 0 || index >= slidesData.length) return;
+            currentIndex = index;
+            slideView.src = slidesData[currentIndex].fileUrl;
+            document.getElementById('page-counter').innerText = `${currentIndex + 1} / ${slidesData.length}`;
+            document.getElementById('current-song-title').innerText = slidesData[currentIndex].songTitle;
 
+            currentSlideKeywordsSet = slidesData[currentIndex].keywordsSet;
+            detectedKeywordsSet = new Set();
+            updateProgressBar(0);
+
+            if (projectorWindow && !projectorWindow.closed) {
+                projectorWindow.document.getElementById('p-img').src = slidesData[currentIndex].fileUrl;
+            }
+            document.getElementById('next-trigger').innerText = slidesData[currentIndex].lastWord || "-";
+
+            renderSetlist();
+            
+            if (lyricsDrawer.classList.contains('active')) {
+                updateFullLyricsView();
+            }
+        }
+
+        // 콘티 목록 렌더
+        function renderSetlist() {
+            const setlistEl = document.getElementById('monitor-setlist');
+            if (!setlistEl) return;
+            setlistEl.innerHTML = '';
+            
+            const uniqueSongs = [];
+            slidesData.forEach((slide, idx) => {
+                if (slide && !uniqueSongs.some(s => s.title === slide.songTitle)) {
+                    uniqueSongs.push({
+                        title: slide.songTitle,
+                        startIndex: idx
+                    });
+                }
+            });
+
+            uniqueSongs.forEach((song, sIdx) => {
+                const item = document.createElement('div');
+                item.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; font-size: 0.85rem;";
+                
+                const isCurrent = slidesData[currentIndex] && slidesData[currentIndex].songTitle === song.title;
+                if (isCurrent) {
+                    item.style.borderColor = "var(--accent)";
+                    item.style.background = "rgba(56, 189, 248, 0.1)";
+                    item.innerHTML = `
+                        <span style="font-weight: bold; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;"><i class="fa-solid fa-play" style="margin-right: 6px;"></i>${sIdx + 1}. ${song.title}</span>
+                        <span style="font-size: 0.75rem; color: var(--accent); font-weight: bold;">ON AIR</span>
+                    `;
+                } else {
+                    item.innerHTML = `
+                        <span style="color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${sIdx + 1}. ${song.title}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">이동 <i class="fa-solid fa-chevron-right" style="font-size:0.7rem;"></i></span>
+                    `;
+                }
+                item.onclick = () => {
+                    updateSlide(song.startIndex);
+                };
+                setlistEl.appendChild(item);
+            });
+        }
+
+        function updateProgressBar(percent) {
+            currentProgress = Math.floor(percent);
+            progressBar.style.width = currentProgress + "%";
+            progressText.innerText = currentProgress + "%";
+            progressText.style.color = currentProgress >= 70 ? "var(--success)" : "var(--accent)";
+        }
+
+        let rollingSpeechBuffer = ""; // 연속 인식 글자 저장을 위한 버퍼 슬라이드
+
+        function initSTT() {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                showNotification("이 브라우저는 음성 인식을 지원하지 않습니다. 크롬 브라우저를 사용해 주세요.", "danger");
+                return;
+            }
+            recognition = new SR(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'ko-KR';
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('mic-status').innerHTML = `<span class="status-dot dot-on" style="width:10px; height:10px; border-radius:50%; background:#10b981; display:inline-block; margin-right:5px; box-shadow:0 0 10px #10b981;"></span> ON`;
+                btnMicToggle.innerHTML = `🛑 인식 중지`;
+            };
+
+            recognition.onresult = (e) => {
+                let interim = ''; let final = '';
+                for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    if (e.results[i].isFinal) final += e.results[i][0].transcript;
+                    else interim += e.results[i][0].transcript;
+                }
+                const speech = (final || interim).trim();
+                voicePreview.textContent = speech;
+                
+                const speechClean = speech.replace(/\s+/g, '');
+                if (speechClean.length > 0) {
+                    rollingSpeechBuffer = (rollingSpeechBuffer + speechClean).slice(-40);
+                }
+
+                // 가창 진행도 채점 루프: 단어 키워드 분석 (퍼지 비교 반영하여 75% 음향 매치 적용)
+                const speechWords = speech.split(/\s+/);
+                speechWords.forEach(spokenWord => {
+                    if (spokenWord.length < 2) return;
+                    for (let keyword of currentSlideKeywordsSet) {
+                        const wordJamo = decomposeHangulToJamo(spokenWord);
+                        const keyJamo = decomposeHangulToJamo(keyword);
+                        const distance = getLevenshteinDistance(wordJamo, keyJamo);
+                        const similarity = 1 - (distance / Math.max(wordJamo.length, keyJamo.length));
+                        if (similarity >= 0.75) {
+                            detectedKeywordsSet.add(keyword);
+                        }
+                    }
+                });
+
+                if (currentSlideKeywordsSet.size > 0) {
+                    const ratio = (detectedKeywordsSet.size / currentSlideKeywordsSet.size) * 100;
+                    updateProgressBar(ratio);
+                }
+                checkSpeechMatch(speechClean);
+            };
+
+            recognition.onend = () => { if (isListening) recognition.start(); };
+            recognition.start();
+        }
+
+        function checkSpeechMatch(speech) {
+            const now = Date.now();
+            if (now - lastTriggerTime < 2000) return;
+
+            // [1순위] 구어체 절수 제어 명령 (70% 진행률 안전장치 미해제 시에도 즉시 이동 가능)
+            if (speech.includes("일절") || speech.includes("1절")) { jumpToVerse("1절"); return; }
+            if (speech.includes("이절") || speech.includes("2절")) { jumpToVerse("2절"); return; }
+            if (speech.includes("삼절") || speech.includes("3절")) { jumpToVerse("3절"); return; }
+            if (speech.includes("사절") || speech.includes("4절")) { jumpToVerse("4절"); return; }
+            if (speech.includes("오절") || speech.includes("5절")) { jumpToVerse("5절"); return; }
+            if (speech.includes("후렴") || speech.includes("코러스")) { jumpToVerse("후렴"); return; }
+
+            // [2순위] 슬라이드 첫 가사 글로벌 점프 (자모 퍼지 대조 기법으로 오인식 전격 방어 및 연동)
+            for (let i = 0; i < slidesData.length; i++) {
+                if (i === currentIndex) continue; 
+                const targetFirstWord = slidesData[i].firstWord;
+                if (targetFirstWord && targetFirstWord.length >= 3) {
+                    // 롤링 버퍼 및 즉시 인식 가사 음질 대조
+                    const isFuzzyMatched = checkPhoneticFuzzyMatch(speech, targetFirstWord) || 
+                                           checkPhoneticFuzzyMatch(rollingSpeechBuffer, targetFirstWord);
+                    if (isFuzzyMatched) {
+                        lastTriggerTime = now;
+                        updateSlide(i);
+                        voicePreview.textContent = `[음운 퍼지 워프 성공] ➔ "${slidesData[i].firstWord}"`;
+                        rollingSpeechBuffer = ""; 
+                        return;
+                    }
+                }
+            }
+
+            // 가창 진행률 70% 충족 보호 가이드 (우발적 넘김 차단 안전락)
+            if (currentProgress < 70) return;
+
+            // [3순위] 순차 자동 진행 (마지막 끝단어 유사 음운 감지 시 다음 슬라이드로 전환)
+            const cur = slidesData[currentIndex];
+            if (cur.lastWord) {
+                const isLastFuzzyMatched = checkPhoneticFuzzyMatch(speech, cur.lastWord) || 
+                                           checkPhoneticFuzzyMatch(rollingSpeechBuffer, cur.lastWord);
+                if (isLastFuzzyMatched) {
+                    if (currentIndex < slidesData.length - 1) {
+                        lastTriggerTime = now; 
+                        updateSlide(currentIndex + 1);
+                        rollingSpeechBuffer = "";
+                        return;
+                    }
+                }
+            }
+        }
+
+        function jumpToVerse(label) {
+            const currentSong = slidesData[currentIndex].songTitle;
+            let idx = slidesData.findIndex(s => s && s.songTitle === currentSong && s.verseLabel === label);
+            if (idx === -1) {
+                idx = slidesData.findIndex(s => s && s.verseLabel === label);
+            }
+            if (idx !== -1) { lastTriggerTime = Date.now(); updateSlide(idx); }
+        }
+
+        btnMicToggle.addEventListener('click', () => {
+            if (!recognition) initSTT();
+            if (isListening) { isListening = false; recognition.stop(); } else { recognition.start(); }
+        });
+
+        // 세컨드 모니터 1:1 풀 프로젝션 출력 빌더
+        btnProjector.addEventListener('click', () => {
+            projectorWindow = window.open('', 'P', 'width=1280,height=720');
+            projectorWindow.document.write(`
+                <html>
+                <head>
+                    <title>프로젝터 송출용 스크린 (F11을 눌러 전체화면)</title>
+                    <style>
+                        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+                        img { width: 100vw; height: 100vh; object-fit: fill; border: none; }
+                    </style>
+                </head>
+                <body>
+                    <img id="p-img" src="${slidesData[currentIndex].fileUrl}">
+                </body>
+                </html>
+            `);
+        });
+
+        document.getElementById('btn-next').onclick = () => { document.activeElement.blur(); updateSlide(currentIndex + 1); };
+        document.getElementById('btn-prev').onclick = () => { document.activeElement.blur(); updateSlide(currentIndex - 1); };
+        document.getElementById('btn-edit-back').onclick = () => { 
+            setupScreen.style.display='flex'; 
+            liveScreen.style.display='none'; 
+            btnOpenDrawerLive.style.display='none';
+            btnOpenDrawerSetup.style.display='flex';
+            closeLyricsDrawer();
+        };
+
+        // 콘티 수량 설정 실시간 재정렬 바인딩 함수
+        function syncLyricsWithConti() {
+            if (slidesData.length === 0) {
+                showNotification("업로드된 슬라이드가 아직 없습니다. 먼저 이미지를 등록해 주세요.", "warning");
+                return;
+            }
+            const derivedLyricsList = fetchOnlineLyricsForConti();
+            
+            slidesData.forEach((slide, idx) => {
+                const matched = derivedLyricsList[idx];
+                if (matched) {
+                    slide.songTitle = matched.songTitle;
+                    slide.verseLabel = matched.verse;
+                    slide.rawText = matched.text;
+
+                    const sgIn = document.getElementById(`sg-${idx}`);
+                    const atIn = document.getElementById(`at-${idx}`);
+                    const lyIn = document.getElementById(`ly-${idx}`);
+
+                    if (sgIn) sgIn.value = matched.songTitle;
+                    if (atIn) atIn.value = matched.verse;
+                    if (lyIn) lyIn.value = matched.text;
+
+                    if (slide.isManual) {
+                        const newUrl = drawTextSlide(matched.songTitle, matched.verse, matched.text);
+                        slide.fileUrl = newUrl;
+                        const imgP = document.getElementById(`img-p-${idx}`);
+                        if (imgP) imgP.src = newUrl;
+                    }
+                }
+            });
+            checkAndClassifySlides();
+            showNotification("📝 콘티 수량 설정에 맞춰 가사가 균등 재배분되었습니다!", "success");
+
+            if (lyricsDrawer.classList.contains('active')) {
+                updateFullLyricsView();
+            }
+        }
+
+        // 동적 버튼 및 입력창 실시간 디바운스 바인딩
+        document.getElementById('btn-sync-conti').addEventListener('click', syncLyricsWithConti);
+
+        let debounceTimeout;
+        document.getElementById('conti-input').addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                // 이미 이미지가 있는 경우에만 타이핑 중 자동 무진동 롤백 정렬 연계
+                if (slidesData.length > 0) {
+                    syncLyricsWithConti();
+                }
+            }, 1000); // 1초간 입력 멈춤 감지 시 자동 스마트 분할
+        });
+
+        // 키보드 제어 및 초고속 슬라이드 점프 HUD 리스너
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('image-modal');
+            const fModal = document.getElementById('fetch-lyrics-modal');
+            if (e.key === 'Escape') {
+                if (modal.classList.contains('active')) {
+                    closeImageModal();
+                }
+                if (fModal.classList.contains('active')) {
+                    closeFetchLyricsModal();
+                }
+                if (lyricsDrawer.classList.contains('active')) {
+                    closeLyricsDrawer();
+                }
+                return;
+            }
+
+            if (liveScreen.style.display === 'flex') {
+                if (e.key >= '0' && e.key <= '9') { 
+                    document.activeElement.blur(); 
+                    clearTimeout(jumpTimeout);
+                    jumpBuffer += e.key; 
+                    document.getElementById('jump-hud').style.display='flex'; 
+                    document.getElementById('hud-number').innerText=jumpBuffer; 
+                    jumpTimeout = setTimeout(() => { jumpBuffer=""; document.getElementById('jump-hud').style.display='none'; }, 4000);
+                }
+                if (e.key === 'Enter' && jumpBuffer) { 
+                    e.preventDefault();
+                    e.stopPropagation();
+                    updateSlide(parseInt(jumpBuffer)-1); 
+                    jumpBuffer=""; 
+                    document.getElementById('jump-hud').style.display='none'; 
+                }
+                if (e.key === 'ArrowRight' || e.key === ' ') updateSlide(currentIndex+1);
+                if (e.key === 'ArrowLeft') updateSlide(currentIndex-1);
+            }
+        });
     </script>
 </body>
 </html>
