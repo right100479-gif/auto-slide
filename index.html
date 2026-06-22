@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Praise Master Pro - 통합 시스템 v7.3</title>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>AI Praise Master Pro - 세이브 통합 시스템 v7.3</title>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style>
@@ -16,40 +16,29 @@
             --success: #10b981;
             --danger: #ef4444;
             --text-main: #f8fafc;
-            --text-muted: #64748b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: var(--bg-dark); color: var(--text-main); font-family: 'Pretendard', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        * { box-sizing: border-box; }
+        body { background-color: var(--bg-dark); color: var(--text-main); font-family: 'Pretendard', sans-serif; height: 100vh; display: flex; flex-direction: column; }
 
-        /* Setup */
+        /* [Setup Screen] */
         #setup-screen { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 900px; }
-        .header { text-align: center; margin-bottom: 30px; }
+        .upload-zone { border: 2px dashed var(--accent); padding: 40px; border-radius: 16px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: 0.3s; }
         
-        .upload-zone { border: 2px dashed var(--accent); background: rgba(56, 189, 248, 0.05); border-radius: 16px; padding: 40px; text-align: center; cursor: pointer; transition: 0.3s; margin-bottom: 20px; }
-        .upload-zone.compact { padding: 15px; display: flex; align-items: center; justify-content: center; gap: 15px; }
-
-        .review-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 15px; display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; margin-bottom: 15px; }
-        .preview-box { width: 240px; height: 135px; border-radius: 8px; overflow: hidden; border: 1px solid var(--card-border); cursor: pointer; }
+        .review-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-bottom: 20px; }
+        .preview-box { width: 320px; height: 180px; border-radius: 8px; overflow: hidden; border: 1px solid var(--card-border); cursor: pointer; }
         .preview-box img { width: 100%; height: 100%; object-fit: cover; }
         
         .editor-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .input-field { background: #090d16; color: white; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px; width: 100%; }
-        .lyrics-textarea { grid-column: span 2; height: 80px; resize: none; }
-
-        /* Live */
+        .input-field { background: #090d16; color: white; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; width: 100%; }
+        .lyrics-textarea { grid-column: span 2; height: 100px; resize: none; }
+        
+        /* [Live Screen] */
         #live-screen { display: none; flex: 1; background: #000; position: relative; }
         #slide-view { width: 100%; height: 100%; object-fit: contain; }
+        #monitor { position: absolute; top: 20px; right: 20px; width: 300px; background: rgba(19, 27, 46, 0.9); padding: 15px; border-radius: 12px; z-index: 10; }
         
-        #monitor { position: absolute; top: 20px; right: 20px; width: 300px; background: rgba(19, 27, 46, 0.9); border: 1px solid var(--card-border); border-radius: 12px; padding: 15px; color: white; font-size: 0.9rem; z-index: 10; }
-        .progress-bar { height: 6px; background: #090d16; border-radius: 3px; margin-top: 5px; }
-        .progress-fill { height: 100%; background: var(--success); width: 0%; border-radius: 3px; }
-
-        /* Full Lyrics Drawer */
-        #lyrics-drawer { position: fixed; right: -400px; top: 0; width: 400px; height: 100%; background: #090d16; border-left: 2px solid var(--accent); transition: 0.3s; z-index: 50; padding: 20px; overflow-y: auto; }
-        #lyrics-drawer.active { right: 0; }
-
         .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
         .btn-success { background: var(--success); color: white; }
         .btn-accent { background: var(--accent); color: var(--bg-dark); }
@@ -60,19 +49,22 @@
 
     <div id="setup-screen">
         <div class="container">
-            <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h1>AI Praise Master <span>v7.3</span></h1>
+                <div>
+                    <button class="btn btn-accent" onclick="saveProject()"><i class="fa-solid fa-download"></i> 프로젝트 저장</button>
+                    <button class="btn btn-success" onclick="document.getElementById('file-load').click()"><i class="fa-solid fa-upload"></i> 프로젝트 불러오기</button>
+                    <input type="file" id="file-load" style="display:none;" accept=".json">
+                </div>
             </div>
-            <textarea id="conti-input" class="input-field" style="height:100px; margin-bottom:20px;" placeholder="찬양 콘티 제목을 입력하세요 (엔터로 구분)"></textarea>
-            <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-                <i class="fa-solid fa-cloud-arrow-up" style="font-size:2rem; color:var(--accent);"></i>
-                <h3 id="upload-title">이미지를 선택하세요</h3>
+            
+            <textarea id="conti-input" class="input-field" style="margin-bottom:20px;" placeholder="찬양 콘티 입력..."></textarea>
+            
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+                <h3>이미지 선택</h3>
                 <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
             </div>
-            <div style="display:flex; gap:10px; justify-content:center; margin-bottom:20px;">
-                <button class="btn btn-accent" onclick="addManualSlide()">➕ 슬라이드 직접 추가</button>
-                <button class="btn btn-danger" onclick="location.reload()">🗑️ 전체 초기화</button>
-            </div>
+            
             <div id="review-area"></div>
             <button id="btn-launch" class="btn btn-success" style="display:none; width:100%; margin-top:20px; padding:15px;">시스템 시작</button>
         </div>
@@ -81,30 +73,59 @@
     <div id="live-screen">
         <img id="slide-view">
         <div id="monitor">
-            <div style="margin-bottom:10px;">가창 진행률: <span id="progress-text">0%</span></div>
-            <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
-            <div id="voice-preview" style="margin-top:10px; color:#facc15; font-size:0.8rem;">마이크 대기 중...</div>
-            <button class="btn btn-accent" style="margin-top:10px; width:100%;" onclick="toggleDrawer()">📄 전체 가사 보기</button>
+            <div id="voice-preview" style="color:var(--accent);">마이크 대기 중...</div>
         </div>
-    </div>
-
-    <div id="lyrics-drawer">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h2 style="color:var(--accent);">예배 전체 콘티</h2>
-            <button onclick="toggleDrawer()" style="background:none; border:none; color:white; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div id="drawer-content"></div>
     </div>
 
     <script>
         let slidesData = [];
-        let currentIndex = 0;
-        let isListening = false;
-        let recognition;
 
-        function addManualSlide() {
+        // 프로젝트 저장: 모든 이미지를 Base64로 변환하여 JSON 저장
+        async function saveProject() {
+            const project = {
+                conti: document.getElementById('conti-input').value,
+                slides: await Promise.all(slidesData.map(async s => {
+                    const base64 = await toBase64(s.url);
+                    return { ...s, data: base64 };
+                }))
+            };
+            const blob = new Blob([JSON.stringify(project)], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'praise_project.json';
+            a.click();
+        }
+
+        // 이미지 Base64 변환
+        async function toBase64(url) {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // 프로젝트 불러오기
+        document.getElementById('file-load').onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const project = JSON.parse(event.target.result);
+                document.getElementById('conti-input').value = project.conti;
+                slidesData = project.slides.map(s => ({
+                    ...s, 
+                    url: s.data // Base64 그대로 사용
+                }));
+                rebuildReviewArea();
+            };
+            reader.readAsText(file);
+        };
+
+        function addSlide(url, text = "") {
             const i = slidesData.length;
-            slidesData.push({ id: i, title: "새 찬양", verse: "1절", text: "가사를 입력하세요", url: "" });
+            slidesData.push({ id: i, title: "새 찬양", verse: "1절", text: text, url: url });
             renderSlideCard(i);
             document.getElementById('btn-launch').style.display = 'block';
         }
@@ -113,85 +134,31 @@
             const div = document.createElement('div');
             div.className = 'review-card';
             div.innerHTML = `
-                <div class="preview-box" onclick="openModal('${slidesData[i].url}')"><img src="${slidesData[i].url || 'https://placehold.co/240x135'}"></div>
+                <div class="preview-box"><img src="${slidesData[i].url}"></div>
                 <div>
-                    <button class="btn btn-accent" style="padding:5px 10px; font-size:0.7rem;" onclick="searchLyrics(${i})"><i class="fa-solid fa-magnifying-glass"></i> 웹 가사 검색</button>
+                    <button class="btn btn-accent" onclick="searchLyrics(${i})"><i class="fa-solid fa-magnifying-glass"></i> 웹 검색</button>
                     <div class="editor-inputs">
-                        <input type="text" class="input-field" value="${slidesData[i].title}" oninput="updateData(${i}, 'title', this.value)" placeholder="곡 제목">
-                        <input type="text" class="input-field" value="${slidesData[i].verse}" oninput="updateData(${i}, 'verse', this.value)" placeholder="절수">
-                        <textarea class="input-field lyrics-textarea" oninput="updateData(${i}, 'text', this.value)" placeholder="가사">${slidesData[i].text}</textarea>
+                        <input type="text" class="input-field" value="${slidesData[i].title}" oninput="slidesData[${i}].title=this.value">
+                        <input type="text" class="input-field" value="${slidesData[i].verse}" oninput="slidesData[${i}].verse=this.value">
+                        <textarea class="input-field lyrics-textarea" oninput="slidesData[${i}].text=this.value">${slidesData[i].text}</textarea>
                     </div>
                 </div>
             `;
             document.getElementById('review-area').appendChild(div);
         }
 
-        function updateData(i, key, val) { slidesData[i][key] = val; }
+        function rebuildReviewArea() {
+            document.getElementById('review-area').innerHTML = '';
+            slidesData.forEach((_, i) => renderSlideCard(i));
+            document.getElementById('btn-launch').style.display = 'block';
+        }
 
         function searchLyrics(i) {
-            const title = slidesData[i].title;
-            window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(title + ' 가사')}`, '_blank');
+            window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(slidesData[i].title + ' 가사')}`, '_blank');
         }
 
-        function toggleDrawer() {
-            document.getElementById('lyrics-drawer').classList.toggle('active');
-            if(document.getElementById('lyrics-drawer').classList.contains('active')) {
-                const content = document.getElementById('drawer-content');
-                content.innerHTML = slidesData.map((s, i) => `
-                    <div style="padding:10px; border-bottom:1px solid #1e293b; cursor:pointer;" onclick="jumpTo(${i})">
-                        <div style="color:var(--accent); font-weight:bold;">${s.title} (${s.verse})</div>
-                        <div style="font-size:0.8rem;">${s.text.substring(0,30)}...</div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        function jumpTo(i) { currentIndex = i; updateLive(); toggleDrawer(); }
-
-        function updateLive() {
-            document.getElementById('slide-view').src = slidesData[currentIndex].url || 'https://placehold.co/1920x1080';
-            document.getElementById('current-song-title').innerText = slidesData[currentIndex].title;
-        }
-
-        document.getElementById('btn-launch').onclick = () => {
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('live-screen').style.display = 'block';
-            updateLive();
-            initSTT();
-        };
-
-        function initSTT() {
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!SR) return;
-            recognition = new SR();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'ko-KR';
-            recognition.onresult = (e) => {
-                const speech = e.results[e.results.length-1][0].transcript;
-                document.getElementById('voice-preview').innerText = speech;
-                
-                // 가창률 로직 (예시 70% 도달 시 전환)
-                const progress = Math.min(100, speech.length * 5); 
-                document.getElementById('progress-fill').style.width = progress + '%';
-                document.getElementById('progress-text').innerText = progress + '%';
-                
-                if(progress >= 70 && currentIndex < slidesData.length-1) {
-                    currentIndex++; updateLive();
-                }
-            };
-            recognition.start();
-        }
-
-        // 초기 로직 추가
         document.getElementById('file-input').onchange = (e) => {
-            Array.from(e.target.files).forEach(f => {
-                const i = slidesData.length;
-                slidesData.push({ id: i, title: "새 찬양", verse: "1절", text: "", url: URL.createObjectURL(f) });
-                renderSlideCard(i);
-            });
-            document.getElementById('btn-launch').style.display = 'block';
-            document.getElementById('drop-zone').classList.add('compact');
+            Array.from(e.target.files).forEach(f => addSlide(URL.createObjectURL(f)));
         };
     </script>
 </body>
