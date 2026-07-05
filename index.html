@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4</title>
+    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4 (안정화 버전)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght=400;600;700&family=Pretendard:wght=400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -46,7 +46,7 @@
         <div class="w-full max-w-[1050px] mx-auto">
             <div class="text-center mb-8">
                 <h1 class="text-4xl md:text-5xl font-bold tracking-tight">AI PRAISE MASTER <span class="text-accent neon-glow-accent">PRO v7.4</span></h1>
-                <p class="text-gray-400 mt-3 text-lg">음성 분석 및 한글 자모 분석 기술 기반 실시간 찬양 세트리스트 송출 제어기</p>
+                <p class="text-gray-400 mt-3 text-lg">음성 분석 및 한글 자모 분석 기술 기반 실시간 찬양 세트리스트 송출 제어기 (안정화 버전)</p>
             </div>
             
             <div class="flex flex-wrap gap-3 justify-end mb-4">
@@ -225,7 +225,7 @@
             const targetJamo = decomposeHangulToJamo(target);
             if (speechJamo.includes(targetJamo)) return true;
             const len = targetJamo.length;
-            if (speechJamo.length < len) return false;
+            if (len === 0 || speechJamo.length < len) return false;
             for (let i = 0; i <= speechJamo.length - len; i++) {
                 const sub = speechJamo.substring(i, i + len);
                 const distance = getLevenshteinDistance(sub, targetJamo);
@@ -247,6 +247,7 @@
         let currentSlideKeywordsSet = new Set();
         let detectedKeywordsSet = new Set();
         let currentProgress = 0;
+        let rollingSpeechBuffer = "";
 
         // CCM 로컬 라이브러리 11곡 완벽 내장
         const onlineLyricsDatabase = {
@@ -678,8 +679,16 @@
                 if (badge) badge.innerText = `SLIDE ${i+1} [${slidesData[i].songTitle}] (${slidesData[i].verseLabel})`;
                 
                 slidesData[i].firstWord = compressed.length >= 4 ? compressed.substring(0, 4) : compressed;
-                slidesData[i].lastWord = compressed.substring(compressed.length - 3);
-                slidesData[i].keywordsSet = new Set(lyricValue.split(/\s+/).filter(w => w.length >= 2));
+                
+                const lastLen = Math.min(3, compressed.length);
+                slidesData[i].lastWord = compressed.substring(compressed.length - lastLen);
+
+                // 형태소 키워드 가사 클린 파싱 적용 (문장 부호 제거)
+                const cleanKeywords = lyricValue
+                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+                    .split(/\s+/)
+                    .filter(w => w.length >= 2);
+                slidesData[i].keywordsSet = new Set(cleanKeywords);
             }
 
             let seenSongs = new Set();
@@ -925,6 +934,7 @@
             currentSlideKeywordsSet = slidesData[currentIndex].keywordsSet;
             detectedKeywordsSet = new Set();
             updateProgressBar(0);
+            rollingSpeechBuffer = ""; // 워프/스킵 직후 이전 잔상으로 이중 트리거되는 현상 완전히 차단
 
             if (projectorWindow && !projectorWindow.closed) {
                 const pImg = projectorWindow.document.getElementById('p-img');
@@ -969,7 +979,6 @@
             }
         }
 
-        let rollingSpeechBuffer = "";
         function initSTT() {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SR) { showNotification("구글 크롬 브라우저 환경에서만 동작합니다.", "danger"); return; }
@@ -993,23 +1002,31 @@
                 const speechClean = speech.replace(/\s+/g, '');
                 if (speechClean.length > 0) rollingSpeechBuffer = (rollingSpeechBuffer + speechClean).slice(-40);
 
-                speech.split(/\s+/).forEach(spokenWord => {
-                    if (spokenWord.length < 2) return;
-                    for (let keyword of currentSlideKeywordsSet) {
-                        const similarity = 1 - (getLevenshteinDistance(decomposeHangulToJamo(spokenWord), decomposeHangulToJamo(keyword)) / Math.max(spokenWord.length, keyword.length));
-                        if (similarity >= 0.73) detectedKeywordsSet.add(keyword);
+                // 분절 검색 대신 전체 수집 버퍼를 통한 자모 매칭 진행률 정밀 업데이트
+                detectedKeywordsSet.clear();
+                for (let keyword of currentSlideKeywordsSet) {
+                    if (keyword.length < 2) continue;
+                    if (checkPhoneticFuzzyMatch(speechClean, keyword, 0.70) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, keyword, 0.70)) {
+                        detectedKeywordsSet.add(keyword);
                     }
-                });
+                }
 
                 if (currentSlideKeywordsSet.size > 0) {
                     updateProgressBar((detectedKeywordsSet.size / currentSlideKeywordsSet.size) * 100);
+                } else {
+                    updateProgressBar(0);
                 }
                 checkSpeechMatch(speechClean);
             };
 
             recognition.onend = () => {
                 if (!isListening) return;
-                try { recognition.start(); } catch (err) { isListening = false; btnMicToggle.innerHTML = `🎙️ 음성 인식 시작`; btnMicToggle.className = "bg-accent text-bgDark px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2"; }
+                // 끊김 없는 리스타트 래퍼 로직
+                setTimeout(() => {
+                    if (isListening) {
+                        try { recognition.start(); } catch (err) { isListening = false; btnMicToggle.innerHTML = `🎙️ 음성 인식 시작`; btnMicToggle.className = "bg-accent text-bgDark px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2"; }
+                    }
+                }, 300);
             };
             try { recognition.start(); } catch (err) { isListening = false; }
         }
@@ -1019,32 +1036,52 @@
             const now = Date.now();
             if (now - lastTriggerTime < 2500) return; // 연속 스킵 방지 쿨다운 레이어
 
-            // [우선순위 1] 무조건 강제 우회 인터럽트 절수 이동 기믹
-            if (speech.includes("일절") || speech.includes("1절")) { jumpToVerse("1절"); return; }
-            if (speech.includes("이절") || speech.includes("2절")) { jumpToVerse("2절"); return; }
-            if (speech.includes("삼절") || speech.includes("3절")) { jumpToVerse("3절"); return; }
-            if (speech.includes("후렴") || speech.includes("코러스")) { jumpToVerse("후렴"); return; }
+            // [우선순위 1] 명시적 절수 음성 인터럽트 워프 (진행도 무관 무조건 이동 가능)
+            if (speech.includes("일절") || speech.includes("1절") || speech.includes("일저")) { jumpToVerse("1절"); return; }
+            if (speech.includes("이절") || speech.includes("2절") || speech.includes("이저")) { jumpToVerse("2절"); return; }
+            if (speech.includes("삼절") || speech.includes("3절") || speech.includes("삼저")) { jumpToVerse("3절"); return; }
+            if (speech.includes("후렴") || speech.includes("코러스") || speech.includes("후려")) { jumpToVerse("후렴"); return; }
 
-            // 타 구절 첫 문자열 매칭 워프
-            for (let i = 0; i < slidesData.length; i++) {
-                if (i === currentIndex) continue;
-                const targetFirstWord = slidesData[i].firstWord;
-                if (targetFirstWord && targetFirstWord.length >= 3) {
-                    if (checkPhoneticFuzzyMatch(speech, targetFirstWord) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, targetFirstWord)) {
-                        lastTriggerTime = now; updateSlide(i); rollingSpeechBuffer = ""; return;
+            // [우선순위 2] 바로 다음 슬라이드의 첫 부분 가사 매칭 스킵 (자연스러운 순차 도치 제어)
+            if (currentIndex < slidesData.length - 1) {
+                const nextSlide = slidesData[currentIndex + 1];
+                const nextFirstWord = nextSlide.firstWord;
+                if (nextFirstWord && nextFirstWord.length >= 3) {
+                    if (checkPhoneticFuzzyMatch(speech, nextFirstWord, 0.72) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, nextFirstWord, 0.72)) {
+                        lastTriggerTime = now;
+                        updateSlide(currentIndex + 1);
+                        showNotification("다음 가사 진입 감지: 자동 스킵 완료", "success");
+                        return;
                     }
                 }
             }
 
-            // ⭐ [안전가드 레이어 해제 검증] 가창 진행률이 70% 미만이면 영구 패이지 자동 넘김 락 처리
+            // [우선순위 3] 완전히 낯선 먼 구절/곡 워프 (안전 잠금장치: 최소 4자 이상 및 엄격한 80% 유사성 요구)
+            for (let i = 0; i < slidesData.length; i++) {
+                if (i === currentIndex || i === currentIndex + 1) continue;
+                const targetFirstWord = slidesData[i].firstWord;
+                if (targetFirstWord && targetFirstWord.length >= 4) {
+                    if (checkPhoneticFuzzyMatch(speech, targetFirstWord, 0.80) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, targetFirstWord, 0.80)) {
+                        lastTriggerTime = now;
+                        updateSlide(i);
+                        showNotification(`[${slidesData[i].songTitle}] (${slidesData[i].verseLabel}) 파트 워프`, "success");
+                        return;
+                    }
+                }
+            }
+
+            // ⭐ [안전가드 레이어 해제 검증] 가창 진행률이 70% 미만이면 자동 페이지 전환 영구 잠금(Lock)
             if (currentProgress < 70) return;
 
-            // [우선순위 3] 70% 충족 상태에서 엔드 트리거 키워드 매치 판별 자동 스킵
+            // [우선순위 4] 진행률 70% 충족 상태에서 마지막 어절/가사(End Trigger) 매치 판별 시 자동 다음 장 전환
             const cur = slidesData[currentIndex];
-            if (cur.lastWord) {
-                if (checkPhoneticFuzzyMatch(speech, cur.lastWord) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, cur.lastWord)) {
+            if (cur.lastWord && cur.lastWord.length >= 2) {
+                if (checkPhoneticFuzzyMatch(speech, cur.lastWord, 0.72) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, cur.lastWord, 0.72)) {
                     if (currentIndex < slidesData.length - 1) {
-                        lastTriggerTime = now; updateSlide(currentIndex + 1); rollingSpeechBuffer = ""; return;
+                        lastTriggerTime = now;
+                        updateSlide(currentIndex + 1);
+                        showNotification("현재 가사 완료 감지: 다음 장 이동", "success");
+                        return;
                     }
                 }
             }
