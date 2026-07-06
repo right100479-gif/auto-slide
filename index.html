@@ -247,7 +247,7 @@
         let currentSlideKeywordsSet = new Set();
         let detectedKeywordsSet = new Set();
         let currentProgress = 0;
-        let rollingSpeechBuffer = "";
+        let rollingSpeechBuffer = ""; // 유일한 선언 위치
 
         // CCM 로컬 라이브러리 11곡 완벽 내장
         const onlineLyricsDatabase = {
@@ -979,7 +979,6 @@
             }
         }
 
-        let rollingSpeechBuffer = "";
         function initSTT() {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SR) { showNotification("구글 크롬 브라우저 환경에서만 동작합니다.", "danger"); return; }
