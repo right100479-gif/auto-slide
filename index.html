@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4 (안정화 버전)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght=400;600;700&family=Pretendard:wght=400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <script>
@@ -979,6 +979,7 @@
             }
         }
 
+        let rollingSpeechBuffer = "";
         function initSTT() {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SR) { showNotification("구글 크롬 브라우저 환경에서만 동작합니다.", "danger"); return; }
@@ -1000,12 +1001,17 @@
                 }
                 const speech = (final || interim).trim(); voicePreview.textContent = speech;
                 const speechClean = speech.replace(/\s+/g, '');
-                if (speechClean.length > 0) rollingSpeechBuffer = (rollingSpeechBuffer + speechClean).slice(-40);
+                
+                // 버퍼 크기를 늘려 천천히 부를 때도 문맥이 유지되도록 강화
+                if (speechClean.length > 0) rollingSpeechBuffer = (rollingSpeechBuffer + speechClean).slice(-60);
 
-                // 분절 검색 대신 전체 수집 버퍼를 통한 자모 매칭 진행률 정밀 업데이트
-                detectedKeywordsSet.clear();
+                // 핵심 수정: detectedKeywordsSet.clear() 제거하여 가창 진행률이 누적 유지되도록 수정
                 for (let keyword of currentSlideKeywordsSet) {
                     if (keyword.length < 2) continue;
+                    
+                    // 이미 인식된 단어는 퍼지 연산을 건너뛰어 성능 최적화
+                    if (detectedKeywordsSet.has(keyword)) continue;
+
                     if (checkPhoneticFuzzyMatch(speechClean, keyword, 0.70) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, keyword, 0.70)) {
                         detectedKeywordsSet.add(keyword);
                     }
