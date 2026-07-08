@@ -1,56 +1,1212 @@
-<!-- ... 이전 코드와 동일 (생략) ... -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4 (최종 안정화 버전)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bgDark: '#090d16',
+                        cardBg: '#131b2e',
+                        cardBorder: '#1e293b',
+                        accent: '#38bdf8',
+                        success: '#10b981',
+                        danger: '#ef4444',
+                        chorus: '#ec4899',
+                        verse: '#a855f7',
+                        warning: '#eab308'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            color: #f8fafc;
+            font-family: 'Urbanist', 'Pretendard', sans-serif;
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .neon-glow-accent { text-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+        .chorus-highlight { border: 2px solid #ec4899 !important; box-shadow: 0 4px 20px rgba(236, 72, 153, 0.2); }
+        #monitor-setlist::-webkit-scrollbar, .drawer-body::-webkit-scrollbar { width: 4px; }
+        #monitor-setlist::-webkit-scrollbar-thumb, .drawer-body::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+    <!-- [STEP 1] SETUP SCREEN -->
+    <div id="setup-screen" class="flex-1 p-6 md:p-10 overflow-y-auto flex flex-col align-items-center">
+        <div class="w-full max-w-[1050px] mx-auto">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl md:text-5xl font-bold tracking-tight">AI PRAISE MASTER <span class="text-accent neon-glow-accent">PRO v7.4</span></h1>
+                <p class="text-gray-400 mt-3 text-lg">음성 분석 및 한글 자모 분석 기술 기반 실시간 찬양 세트리스트 송출 제어기 (안정화 버전)</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-3 justify-end mb-4">
+                <button class="bg-cardBg border border-cardBorder text-gray-300 px-4 py-2 rounded-lg font-bold hover:bg-slate-800 transition flex items-center gap-2" onclick="exportProjectFile()"><i class="fa-solid fa-file-export text-warning"></i> 📂 파일 내보내기 (.praise)</button>
+                <button class="bg-cardBg border border-cardBorder text-gray-300 px-4 py-2 rounded-lg font-bold hover:bg-slate-800 transition flex items-center gap-2" onclick="document.getElementById('import-file-input').click()"><i class="fa-solid fa-file-import text-accent"></i> 📥 파일 가져오기</button>
+                <input type="file" id="import-file-input" accept=".praise" class="hidden" onchange="importProjectFile(event)">
+                <button class="bg-accent text-bgDark px-4 py-2 rounded-lg font-bold hover:opacity-90 transition flex items-center gap-2" onclick="saveProjectData()"><i class="fa-solid fa-floppy-disk"></i> 💾 세팅 저장</button>
+                <button class="bg-warning text-bgDark px-4 py-2 rounded-lg font-bold hover:opacity-90 transition flex items-center gap-2" onclick="loadProjectData()"><i class="fa-solid fa-folder-open"></i> 📂 세팅 불러오기</button>
+            </div>
+
+            <div class="bg-cardBg border border-cardBorder rounded-2xl p-6 mb-6 shadow-2xl">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                    <h3 class="text-accent font-semibold text-lg flex items-center gap-2"><i class="fa-solid fa-list-check"></i> 1. 예배 찬양 콘티 및 슬라이드 수량 입력 (곡명 뒤에 수량 기재)</h3>
+                    <button class="bg-warning text-bgDark text-xs px-3 py-1.5 rounded font-bold hover:opacity-90 transition" id="btn-sync-conti"><i class="fa-solid fa-rotate"></i> 수량 설정 반영</button>
+                </div>
+                <textarea id="conti-input" class="w-full h-28 bg-bgDark text-white border border-cardBorder rounded-xl p-4 text-base resize-none focus:border-accent focus:ring-1 focus:ring-accent outline-none transition leading-relaxed font-mono">1. 내 모습 이대로 (4)
+2. 꽃들도 (2)
+3. 은혜로다 (2)</textarea>
+            </div>
+
+            <div class="border-2 border-dashed border-accent bg-cyan-950/5 rounded-2xl p-10 text-center cursor-pointer hover:bg-cyan-950/10 hover:border-white transition-all duration-300 mb-6" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <i class="fa-solid fa-file-image text-5xl text-accent mb-3 block" id="upload-icon"></i>
+                <h3 class="text-xl font-bold" id="upload-title">2. 정렬된 악보 슬라이드 이미지들을 선택해 주세요</h3>
+                <p class="text-gray-500 text-sm mt-2" id="upload-desc">(추가 이미지를 드래그하여 이어서 올릴 수 있습니다)</p>
+                <input type="file" id="file-input" multiple accept="image/*" class="hidden">
+            </div>
+
+            <div class="flex flex-wrap gap-3 justify-center mb-6">
+                <button class="bg-accent text-bgDark px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2" id="btn-add-manual"><i class="fa-solid fa-plus"></i> ➕ 슬라이드 직접 추가</button>
+                <button class="bg-warning text-bgDark px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2" id="btn-open-drawer-setup"><i class="fa-solid fa-file-lines"></i> 📋 실시간 전체 가사 모아보기</button>
+                <button class="border border-cardBorder text-gray-400 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-900 transition flex items-center gap-2" id="btn-clear-all"><i class="fa-solid fa-trash-can"></i> 🗑️ 전체 초기화</button>
+            </div>
+
+            <div id="review-area" class="grid gap-5 w-full"></div>
+            
+            <div class="text-center mt-10 pb-20">
+                <button id="btn-launch" class="bg-success text-white w-full py-4 rounded-xl text-xl font-bold hidden hover:opacity-90 transition shadow-lg shadow-success/20 flex items-center justify-center gap-2" onclick="launchSystem()">
+                    <i class="fa-solid fa-play"></i> 세트리스트 구성 완료 및 시스템 시작
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [STEP 2] LIVE SCREEN -->
+    <div id="live-screen" class="hidden flex-1 bg-black relative justify-center items-center overflow-hidden">
+        <img id="slide-view" src="" class="max-w-full max-height-full object-contain">
         
-        // [강화된 70% 진행도 검증 가창 안정락 프로세서]
-        function checkSpeechMatch(speech) {
-            const now = Date.now();
-            if (now - lastTriggerTime < 2500) return; 
+        <div id="monitor" class="absolute top-6 right-6 w-80 bg-cardBg/85 border border-cardBorder rounded-2xl p-5 backdrop-blur-xl z-10 shadow-2xl">
+            <div class="font-bold text-sm pb-2 border-b border-cardBorder mb-3 flex justify-between items-center">
+                <span><i class="fa-solid fa-circle-nodes text-accent"></i> System Status</span>
+                <span id="system-time" class="font-mono text-gray-400">00:00:00</span>
+            </div>
+            <div class="flex justify-between items-center text-sm mb-2">
+                <span>마이크 상태</span>
+                <span id="mic-status" class="flex items-center font-bold text-danger"><span class="w-2.5 h-2.5 rounded-full bg-danger inline-block mr-1.5 shadow-lg shadow-danger/50"></span> OFF</span>
+            </div>
+            <div class="flex justify-between items-center text-sm mb-2">
+                <span>현재 송출 곡</span>
+                <span id="current-song-title" class="text-accent font-bold truncate max-w-[180px] text-right">-</span>
+            </div>
+            <div class="flex justify-between items-center text-sm mb-3">
+                <span>슬라이드 수량</span>
+                <span id="page-counter" class="text-accent font-bold font-mono">0 / 0</span>
+            </div>
+            
+            <!-- 진행률 표시 -->
+            <div class="flex flex-col text-xs mt-2 pt-2 border-t border-cardBorder/50">
+                <div class="flex justify-between w-full mb-1 font-semibold">
+                    <span class="text-gray-400">가창 매칭 진행률 (안전락 해제 기준: 70%)</span>
+                    <span id="progress-text" class="font-bold text-accent font-mono">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-bgDark border border-cardBorder rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full w-0 bg-gradient-to-r from-accent to-success transition-all duration-300"></div>
+                </div>
+            </div>
 
-            // 디버깅: 콘솔에서 현재 상황 확인 가능
-            // console.log("Matching Speech:", speech, "vs Target:", slidesData[currentIndex].lastWord);
+            <!-- 다음 트리거 표시 -->
+            <div class="flex flex-col text-xs mt-3">
+                <span class="text-gray-400 font-semibold mb-1"><i class="fa-solid fa-circle-right text-cyan-400"></i> 다음 슬라이드 이동 키워드 (Trigger)</span>
+                <span id="next-trigger" class="text-cyan-300 font-bold text-sm bg-bgDark/60 p-1.5 rounded border border-cardBorder/40 text-center">-</span>
+            </div>
 
-            // [1순위] 구어체 절수 제어 명령
-            if (speech.includes("일절") || speech.includes("1절")) { jumpToVerse("1절"); return; }
-            if (speech.includes("이절") || speech.includes("2절")) { jumpToVerse("2절"); return; }
-            if (speech.includes("삼절") || speech.includes("3절")) { jumpToVerse("3절"); return; }
-            if (speech.includes("후렴") || speech.includes("코러스")) { jumpToVerse("후렴"); return; }
+            <div class="flex flex-col mt-4 pt-3 border-t border-cardBorder">
+                <span class="text-xs font-bold text-warning mb-2"><i class="fa-solid fa-list-ul"></i> 예배 세트리스트 큐레이션</span>
+                <div id="monitor-setlist" class="flex flex-col gap-1.5 max-h-28 overflow-y-auto pr-1"></div>
+            </div>
 
-            // [2순위] 슬라이드 워프
+            <div class="mt-3">
+                <div class="bg-bgDark/80 rounded-xl p-3 min-h-[55px] text-xs font-semibold text-warning border border-yellow-500/20 break-all" id="voice-preview">음성인식을 활성화하면 실시간 가창 오디오 덤프가 여기에 표기됩니다.</div>
+            </div>
+        </div>
+
+        <div id="jump-hud" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bgDark/95 border-2 border-accent rounded-3xl px-16 py-8 text-center z-50 hidden shadow-2xl shadow-accent/20">
+            <div id="hud-number" class="text-8xl font-black text-accent font-mono tracking-widest">0</div>
+        </div>
+    </div>
+
+    <!-- [STEP 3] BOTTOM BAR -->
+    <div class="p-4 bg-cardBg border-t border-cardBorder flex justify-center items-center gap-3 z-20">
+        <button class="border border-cardBorder text-gray-300 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition flex items-center gap-2 text-sm" onclick="location.reload()"><i class="fa-solid fa-rotate-right"></i> 리셋</button>
+        <button class="bg-warning text-bgDark px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2 text-sm hidden" id="btn-edit-back"><i class="fa-solid fa-pen-to-square"></i> 가사 재교정</button>
+        <button class="bg-warning text-bgDark px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2 text-sm hidden" id="btn-open-drawer-live"><i class="fa-solid fa-file-lines"></i> 전체 가사</button>
+        <button class="bg-success text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2 text-sm hidden" id="btn-projector"><i class="fa-solid fa-desktop"></i> 📺 프로젝터 송출</button>
+        <button class="border border-cardBorder text-gray-400 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition text-sm disabled:opacity-40 disabled:cursor-not-allowed" id="btn-prev" disabled>이전</button>
+        <button class="bg-accent text-bgDark px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2 text-sm hidden" id="btn-mic-toggle">🎙️ 음성 인식 시작</button>
+        <button class="border border-cardBorder text-gray-400 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition text-sm disabled:opacity-40 disabled:cursor-not-allowed" id="btn-next" disabled>다음</button>
+    </div>
+
+    <!-- [IMAGE LIGHTBOX MODAL] -->
+    <div id="image-modal" class="fixed inset-0 bg-bgDark/95 hidden z-[2000] justify-center items-center backdrop-blur-md opacity-0 transition-opacity duration-200">
+        <div class="relative max-w-[90%] max-h-[85%] flex justify-center items-center">
+            <img id="modal-img" src="" class="max-w-full max-h-full object-contain rounded-xl border border-accent shadow-2xl">
+            <button id="close-modal" class="absolute -top-12 -right-4 text-white text-3xl hover:text-accent transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- [FULL LYRICS DRAWER PANEL] -->
+    <div id="lyrics-drawer" class="fixed top-0 -right-[460px] w-[440px] h-full bg-slate-900/95 border-l border-cardBorder z-[1500] shadow-2xl backdrop-blur-xl transition-all duration-300 flex flex-col">
+        <div class="p-5 border-b border-cardBorder flex justify-between items-center bg-cardBg/90">
+            <h3 class="text-accent font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-file-lines"></i> 전체 가사 흐름판</h3>
+            <button id="close-drawer" class="text-white text-2xl hover:text-accent transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="drawer-body flex-1 overflow-y-auto p-5 flex flex-col gap-4" id="drawer-content"></div>
+    </div>
+
+    <!-- [🌐 스마트 가사 가져오기 & 오토스플릿 배분 모달] -->
+    <div id="fetch-lyrics-modal" class="fixed inset-0 bg-bgDark/95 hidden z-[1600] justify-center items-center backdrop-blur-md opacity-0 transition-opacity duration-200">
+        <div class="bg-cardBg border border-accent rounded-2xl p-6 w-11/12 max-w-xl shadow-2xl flex flex-col gap-4">
+            <div class="flex justify-between items-center">
+                <h3 id="fetch-modal-title" class="text-accent font-bold text-lg"></h3>
+                <button onclick="closeFetchLyricsModal()" class="text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="bg-bgDark/50 p-4 rounded-xl border border-cardBorder text-sm leading-relaxed" id="fetch-db-status"></div>
+            <textarea class="w-full h-56 bg-bgDark text-white border border-cardBorder rounded-xl p-4 text-sm resize-none font-mono focus:border-accent outline-none" id="fetch-lyrics-text"></textarea>
+            <div class="flex gap-2 justify-end">
+                <button class="border border-cardBorder text-gray-300 px-4 py-2 rounded-lg font-bold text-sm" onclick="closeFetchLyricsModal()">취소</button>
+                <button class="bg-warning text-bgDark px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1" id="btn-apply-fetch"><i class="fa-solid fa-circle-check"></i> 가사 적용 및 분배</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* -----------------------------------------------------------
+           1. 유틸리티 함수 (자모 분해, 레벤슈타인 거리 등)
+        ----------------------------------------------------------- */
+        const CHOSEONG = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+        const JUNGSEONG = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+        const JONGSEONG = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+
+        function decomposeHangulToJamo(str) {
+            let result = "";
+            for (let i = 0; i < str.length; i++) {
+                const code = str.charCodeAt(i);
+                if (code >= 44032 && code <= 55203) {
+                    const sIndex = code - 44032;
+                    const c = Math.floor(sIndex / 588);
+                    const ju = Math.floor((sIndex % 588) / 28);
+                    const jo = sIndex % 28;
+                    result += CHOSEONG[c] + JUNGSEONG[ju] + JONGSEONG[jo];
+                } else { result += str[i]; }
+            }
+            return result.replace(/\s+/g, "");
+        }
+
+        function getLevenshteinDistance(a, b) {
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) { matrix[i][j] = matrix[i - 1][j - 1]; }
+                    else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        function checkPhoneticFuzzyMatch(speech, target, threshold = 0.73) {
+            const speechJamo = decomposeHangulToJamo(speech);
+            const targetJamo = decomposeHangulToJamo(target);
+            if (speechJamo.includes(targetJamo)) return true;
+            const len = targetJamo.length;
+            if (len === 0 || speechJamo.length < len) return false;
+            for (let i = 0; i <= speechJamo.length - len; i++) {
+                const sub = speechJamo.substring(i, i + len);
+                const distance = getLevenshteinDistance(sub, targetJamo);
+                const similarity = 1 - (distance / len);
+                if (similarity >= threshold) return true;
+            }
+            return false;
+        }
+
+        function escapeHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[char]));
+        }
+        function escapeAttr(value) { return escapeHTML(value); }
+
+        function showNotification(message, type = 'success') {
+            let toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+                background: ${type === 'success' ? '#10b981' : type === 'danger' ? '#ef4444' : '#eab308'};
+                color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: bold; z-index: 5000;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0; transition: all 0.3s ease;
+                display: flex; align-items: center; gap: 8px; font-size: 0.95rem; pointer-events: none;
+            `;
+            let icon = type === 'success' ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-triangle-exclamation"></i>';
+            toast.innerHTML = `${icon} <span>${escapeHTML(message)}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)'; }, 50);
+            setTimeout(() => {
+                toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 2500);
+        }
+
+        /* -----------------------------------------------------------
+           2. 상태 변수 및 데이터베이스
+        ----------------------------------------------------------- */
+        let slidesData = [];
+        let currentIndex = 0;
+        let recognition;
+        let isListening = false;
+        let lastTriggerTime = 0;
+        let projectorWindow = null;
+        let jumpBuffer = "";
+        let jumpTimeout = null;
+        let currentSlideKeywordsSet = new Set();
+        let detectedKeywordsSet = new Set();
+        let currentProgress = 0;
+        
+        // 롤링 버퍼 단 한 번 선언
+        let rollingSpeechBuffer = ""; 
+        let globalFinalBuffer = "";
+
+        const onlineLyricsDatabase = {
+            "내모습이대로": [
+                { verse: "1절", text: "내 모습 이대로 사랑하시네" },
+                { verse: "1절", text: "연약함 그대로 사랑하시네" },
+                { verse: "후렴", text: "나의 모든 발걸음 인도하시네" },
+                { verse: "후렴", text: "주님만 예배하게 하소서" }
+            ],
+            "주이름찬양": [
+                { verse: "1절", text: "주 이름 찬양 풍요로운 땅에서" },
+                { verse: "1절", text: "거친 광야 같은 열방 가운데서도" },
+                { verse: "후렴", text: "찬양 받으시기 합당한 주님" },
+                { verse: "후렴", text: "축복 주실 때 찬양하리라" }
+            ],
+            "은혜로다": [
+                { verse: "1절", text: "시작된 우리들의 연약함 속에" },
+                { verse: "1절", text: "하나님의 은혜가 흘러 넘치네" },
+                { verse: "후렴", text: "은혜로다 주님의 은혜" },
+                { verse: "후렴", text: "한량없는 주님의 은혜" }
+            ],
+            "꽃들도": [
+                { verse: "1절", text: "이곳에 생명 샘 솟아나네" },
+                { verse: "1절", text: "눈물 골짝 지나갈 때에" },
+                { verse: "후렴", text: "꽃들도 구름도 바람도 넓은 바다도" },
+                { verse: "후렴", text: "찬양하라 찬양하라 예수를" }
+            ],
+            "원하고바라고기도합니다": [
+                { verse: "1절", text: "이 세상을 살아가는 동안에" },
+                { verse: "1절", text: "나의 힘을 의지할 수 없으니" },
+                { verse: "후렴", text: "하나님의 꿈이 나의 비전이 되고" },
+                { verse: "후렴", text: "예수님의 성품이 나의 인격이 되고" }
+            ],
+            "아무것도두려워말라": [
+                { verse: "1절", text: "아무것도 두려워 말라 주 나의 하나님이 지키시네" },
+                { verse: "1절", text: "놀라지 마라 겁내지 마라 주님 너를 지키시네" },
+                { verse: "후렴", text: "내 영혼이 확정되고 확정되었사오니" },
+                { verse: "후렴", text: "믿음의 눈을 들어 주를 바라봅니다" }
+            ],
+            "주품에": [
+                { verse: "1절", text: "주 품에 품으소서 능력의 팔로 덮으소서" },
+                { verse: "후렴", text: "거친 파도 날 향해 와도 주와 함께 날아오르리" },
+                { verse: "후렴", text: "폭풍 가운데 나의 영혼 잠잠하게 주를 보리라" }
+            ],
+            "예배합니다": [
+                { verse: "1절", text: "완전하신 나의 주 의의 길로 인도하소서" },
+                { verse: "1절", text: "행하신 모든 일 주님의 영광 찬양합니다" },
+                { verse: "후렴", text: "예배합니다 찬양합니다 주님만 날 다스리소서" }
+            ],
+            "시간을뚫고": [
+                { verse: "1절", text: "시간을 뚫고 이 땅에 오신 우리 없는 하늘 원치 않아" },
+                { verse: "1절", text: "그토록 우리를 사랑하사 친히 낮아지신 분" },
+                { verse: "후렴", text: "임마누엘 우리와 함께하시네" },
+                { verse: "후렴", text: "가장 거룩한 이름 예수 예수" }
+            ],
+            "시선": [
+                { verse: "1절", text: "내게로부터 눈을 들어 주를 보기 시작할 때" },
+                { verse: "1절", text: "주의 일을 보겠네 모든 시선을 주님께 드리고" },
+                { verse: "후렴", text: "살아계신 하나님을 느낄 때 내 삶은 주의 역사가 되네" }
+            ],
+            "빛으로비추시네": [
+                { verse: "1절", text: "어두운 날들이 지나고 주님의 밝은 빛이 비추네" },
+                { verse: "후렴", text: "빛으로 비추시네 슬픔을 기쁨으로 바꾸시네" }
+            ]
+        };
+
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const reviewArea = document.getElementById('review-area');
+        const setupScreen = document.getElementById('setup-screen');
+        const liveScreen = document.getElementById('live-screen');
+        const slideView = document.getElementById('slide-view');
+        const btnLaunch = document.getElementById('btn-launch');
+        const btnMicToggle = document.getElementById('btn-mic-toggle');
+        const btnProjector = document.getElementById('btn-projector');
+        const voicePreview = document.getElementById('voice-preview');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const lyricsDrawer = document.getElementById('lyrics-drawer');
+        const drawerContent = document.getElementById('drawer-content');
+        const btnOpenDrawerSetup = document.getElementById('btn-open-drawer-setup');
+        const btnOpenDrawerLive = document.getElementById('btn-open-drawer-live');
+        const btnCloseDrawer = document.getElementById('close-drawer');
+
+        setInterval(() => { document.getElementById('system-time').textContent = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        /* -----------------------------------------------------------
+           3. UI 렌더링 및 슬라이드 관리
+        ----------------------------------------------------------- */
+        function wrapCanvasText(ctx, text, maxWidth) {
+            const words = String(text || '').split(/\s+/).filter(Boolean);
+            const lines = []; let line = '';
+            words.forEach(word => {
+                const testLine = line ? `${line} ${word}` : word;
+                if (ctx.measureText(testLine).width <= maxWidth) { line = testLine; return; }
+                if (line) lines.push(line);
+                line = word;
+            });
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        function fetchOnlineLyricsForConti() {
+            const lines = document.getElementById('conti-input').value.split('\n');
+            let accumulatedLyrics = [];
+            lines.forEach(line => {
+                let cleaned = line.replace(/^[0-9]+[\.\s\-]+/g, "").trim();
+                if (!cleaned) return;
+                let countMatch = cleaned.match(/(.*?)\s*[\(\[\{]?\s*(\d+)\s*[\)\]\}]?\s*$/);
+                let title = cleaned; let specifiedCount = null;
+                if (countMatch) { title = countMatch[1].trim(); specifiedCount = parseInt(countMatch[2]); }
+                let matchedKey = Object.keys(onlineLyricsDatabase).find(key => {
+                    let normKey = key.replace(/\s+/g, ""); let normTitle = title.replace(/\s+/g, "");
+                    return normTitle.includes(normKey) || normKey.includes(normTitle);
+                });
+                let dbLyrics = matchedKey ? onlineLyricsDatabase[matchedKey] : [{ verse: "1절", text: `[${title}] 가사 내용을 입력해 주세요.` }];
+                let songName = matchedKey || title;
+                let slideCount = specifiedCount || dbLyrics.length;
+                let buckets = Array.from({ length: slideCount }, () => []);
+                for (let i = 0; i < dbLyrics.length; i++) {
+                    let bucketIndex = Math.min(Math.floor(i * slideCount / dbLyrics.length), slideCount - 1);
+                    buckets[bucketIndex].push(dbLyrics[i]);
+                }
+                for (let s = 0; s < slideCount; s++) {
+                    let chunk = buckets[s];
+                    let chunkText = chunk.length > 0 ? chunk.map(item => item.text).join('\n') : `[${songName}] 파트 가사 입력`;
+                    let chunkVerse = chunk.length > 0 ? chunk[0].verse : "추가";
+                    accumulatedLyrics.push({ songTitle: songName, verse: chunkVerse, text: chunkText });
+                }
+            });
+            return accumulatedLyrics;
+        }
+
+        function drawTextSlide(title, verse, lyrics) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1920; canvas.height = 1080;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
+            grad.addColorStop(0, '#090d16'); grad.addColorStop(0.5, '#05070c'); grad.addColorStop(1, '#111827');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, 1920, 1080);
+            const radGrad = ctx.createRadialGradient(960, 540, 50, 960, 540, 800);
+            radGrad.addColorStop(0, 'rgba(56, 189, 248, 0.08)'); radGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = radGrad; ctx.fillRect(0, 0, 1920, 1080);
+            ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
+            ctx.font = 'bold 36px "Pretendard", sans-serif'; ctx.fillText(title || "새 찬양곡", 960, 100);
+            if (verse) {
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.8)'; ctx.font = 'bold 28px "Pretendard", sans-serif';
+                ctx.fillText(verse, 960, 150);
+            }
+            const sourceLines = String(lyrics || '').split('\n').filter(line => line.trim() !== "");
+            let fontSize = 64;
+            if (sourceLines.length > 4) fontSize = 48;
+            ctx.font = `bold ${fontSize}px "Pretendard", sans-serif`;
+            const lines = sourceLines.flatMap(line => wrapCanvasText(ctx, line.trim(), 1540));
+            const startY = 540 - ((lines.length - 1) * (fontSize * 0.7));
+            lines.forEach((line, index) => {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'; ctx.shadowBlur = 10; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4;
+                ctx.fillStyle = '#ffffff'; ctx.fillText(line.trim(), 960, startY + (index * (fontSize * 1.4)));
+            });
+            return canvas.toDataURL();
+        }
+
+        function convertUrlToBase64(url) {
+            return new Promise((resolve) => {
+                if(url.startsWith('data:')) { resolve(url); return; }
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.src = url;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL());
+                };
+                img.onerror = () => { resolve(url); };
+            });
+        }
+
+        async function processUploadedFiles(files) {
+            toggleCompactDropzone(true);
+            const startIdx = slidesData.length;
+            const derivedLyricsList = fetchOnlineLyricsForConti();
+            for (let i = 0; i < files.length; i++) {
+                const globalIdx = startIdx + i;
+                const base64Str = await new Promise((resolve) => {
+                    const r = new FileReader();
+                    r.onload = (e) => resolve(e.target.result);
+                    r.readAsDataURL(files[i]);
+                });
+                let matchedTemplate = derivedLyricsList[globalIdx] || { songTitle: "", verse: "", text: "가사를 입력하세요." };
+                slidesData.push({
+                    index: globalIdx, fileUrl: base64Str, rawText: matchedTemplate.text,
+                    songTitle: matchedTemplate.songTitle, verseLabel: matchedTemplate.verse, isManual: false
+                });
+                addSlideCardDOM(globalIdx, base64Str, matchedTemplate.songTitle, matchedTemplate.verse, matchedTemplate.text, false);
+            }
+            checkAndClassifySlides();
+        }
+
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files); if (!files.length) return;
+            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+            await processUploadedFiles(files);
+            fileInput.value = ''; 
+        });
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#fff'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#38bdf8'; });
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault(); dropZone.style.borderColor = '#38bdf8';
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (!files.length) return;
+            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+            await processUploadedFiles(files);
+        });
+
+        function toggleCompactDropzone(isCompact) {
+            if (isCompact) {
+                dropZone.className = "border-2 border-dashed border-accent bg-cyan-950/10 rounded-xl p-4 text-center cursor-pointer flex items-center justify-center gap-4 mb-6";
+                document.getElementById('upload-icon').style.fontSize = "1.5rem";
+                document.getElementById('upload-icon').style.marginBottom = "0";
+                document.getElementById('upload-title').innerText = '📂 여기에 추가 이미지를 드롭하거나 클릭하여 추가 업로드';
+                document.getElementById('upload-title').style.fontSize = "1rem";
+                document.getElementById('upload-desc').style.display = 'none';
+                btnLaunch.style.display = 'block';
+            } else {
+                dropZone.className = "border-2 border-dashed border-accent bg-cyan-950/5 rounded-2xl p-10 text-center cursor-pointer hover:bg-cyan-950/10 hover:border-white transition-all duration-300 mb-6";
+                document.getElementById('upload-icon').style.fontSize = "3rem";
+                document.getElementById('upload-icon').style.marginBottom = "0.75rem";
+                document.getElementById('upload-title').innerText = '2. 정렬된 악보 슬라이드 이미지들을 선택해 주세요';
+                document.getElementById('upload-title').style.fontSize = "1.25rem";
+                document.getElementById('upload-desc').style.display = 'block';
+                btnLaunch.style.display = 'none';
+            }
+        }
+
+        document.getElementById('btn-add-manual').addEventListener('click', () => {
+            toggleCompactDropzone(true);
+            const i = slidesData.length;
+            const initialSong = slidesData[i - 1]?.songTitle || "새 찬양곡";
+            const initialVerse = "1절"; const initialText = "여기에 새 가사 내용을 입력하세요.";
+            const generatedUrl = drawTextSlide(initialSong, initialVerse, initialText);
+            slidesData.push({
+                index: i, fileUrl: generatedUrl, rawText: initialText,
+                songTitle: initialSong, verseLabel: initialVerse, isManual: true
+            });
+            addSlideCardDOM(i, generatedUrl, initialSong, initialVerse, initialText, true);
+            checkAndClassifySlides();
+        });
+
+        function addSlideCardDOM(i, url, songTitle, verse, text, isManual) {
+            const card = document.createElement('div');
+            card.className = 'bg-cardBg border border-cardBorder rounded-2xl p-5 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6 items-start relative transition-all duration-300';
+            card.id = `card-${i}`;
+            const safeUrl = escapeAttr(url); const safeSongTitle = escapeAttr(songTitle || '');
+            const safeVerse = escapeAttr(verse || ''); const safeText = escapeHTML(text || '');
+            const safeSearchArg = escapeAttr(JSON.stringify(String(songTitle || '')));
+            
+            const selectOptions = Object.keys(onlineLyricsDatabase).map(songKey => {
+                return `<optgroup label="${escapeAttr(songKey)}" class="bg-bgDark text-white">` + 
+                    onlineLyricsDatabase[songKey].map((item, localIdx) => {
+                        return `<option value="${escapeAttr(songKey)}|${localIdx}">${escapeHTML(item.verse)} - ${escapeHTML(item.text.substring(0, 15))}...</option>`;
+                    }).join('') + `</optgroup>`;
+            }).join('');
+
+            card.innerHTML = `
+                <div class="relative w-full h-[180px] bg-black border border-cardBorder rounded-xl overflow-hidden cursor-pointer hover:scale-[1.02] hover:border-accent group transition-all duration-300" onclick="openImageModal('${safeUrl}')">
+                    <span class="absolute top-2.5 left-2.5 bg-black/85 px-2.5 py-1 rounded border border-cyan-500/30 font-mono text-xs text-accent font-bold z-10" id="badge-${i}">SLIDE ${i + 1}</span>
+                    <img src="${safeUrl}" id="img-p-${i}" class="w-full h-full object-contain">
+                    <div class="absolute inset-0 bg-bgDark/80 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-all duration-200">
+                        <i class="fa-solid fa-magnifying-glass-plus text-accent text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex-1 w-full flex flex-col gap-3">
+                    <div class="flex justify-between items-center min-h-[28px]">
+                        <span class="text-xs font-bold ${isManual ? 'text-chorus' : 'text-accent'}">
+                            ${isManual ? '✏️ 수동 생성형 라이브 캔버스 슬라이드' : '예배 콘티 매칭 슬라이드'}
+                        </span>
+                        <div id="fetch-lyrics-container-${i}"></div>
+                        <div class="flex gap-2">
+                            <button class="border border-accent text-accent text-xs px-2.5 py-1 rounded font-semibold hover:bg-cyan-500/10 transition" onclick="searchLyricsOnWeb(${safeSearchArg})"><i class="fa-solid fa-magnifying-glass"></i> 웹 검색</button>
+                            <button class="bg-danger text-white text-xs px-2.5 py-1 rounded font-semibold hover:opacity-90 transition" onclick="deleteSlide(${i})"><i class="fa-solid fa-trash"></i> 삭제</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-gray-400 font-bold whitespace-nowrap">🎯 구절 템플릿:</span>
+                        <select id="sel-${i}" class="flex-1 bg-bgDark border border-cardBorder p-1.5 rounded text-accent outline-none">
+                            <option value="">-- 직접 입력 또는 템플릿 선택 --</option>
+                            ${selectOptions}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-[140px_90px_1fr] gap-3">
+                        <input type="text" id="sg-${i}" class="w-full bg-bgDark border border-cardBorder text-accent font-bold rounded-lg p-2 text-center text-sm outline-none focus:border-accent" placeholder="곡 제목" value="${safeSongTitle}">
+                        <input type="text" id="at-${i}" class="w-full bg-bgDark border border-cardBorder text-yellow-400 font-bold rounded-lg p-2 text-center text-sm outline-none focus:border-accent" placeholder="절수" value="${safeVerse}">
+                        <textarea id="ly-${i}" class="w-full h-12 bg-bgDark border border-cardBorder text-white text-sm rounded-lg p-2 resize-none outline-none focus:border-accent font-sans leading-tight" placeholder="가사를 입력하세요.">${safeText}</textarea>
+                    </div>
+                </div>
+            `;
+            reviewArea.appendChild(card);
+
+            document.getElementById(`sel-${i}`).addEventListener('change', (e) => {
+                const val = e.target.value; if (!val) return;
+                const [songKey, localIdx] = val.split('|');
+                const matchedItem = onlineLyricsDatabase[songKey][parseInt(localIdx)];
+                if (matchedItem) {
+                    document.getElementById(`sg-${i}`).value = songKey;
+                    document.getElementById(`at-${i}`).value = matchedItem.verse;
+                    document.getElementById(`ly-${i}`).value = matchedItem.text;
+                    handleSlideInputChange(i);
+                }
+            });
+
+            document.getElementById(`sg-${i}`).addEventListener('input', () => handleSlideInputChange(i));
+            document.getElementById(`at-${i}`).addEventListener('input', () => handleSlideInputChange(i));
+            document.getElementById(`ly-${i}`).addEventListener('input', () => handleSlideInputChange(i));
+        }
+
+        function searchLyricsOnWeb(defaultTitle) {
+            let query = defaultTitle.trim();
+            if (!query) {
+                query = prompt("검색할 찬양 곡명을 입력해 주세요:", "내 모습 이대로");
+                if (!query) return;
+            }
+            window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(query + ' 가사')}`, '_blank');
+        }
+
+        function openImageModal(src) {
+            const modal = document.getElementById('image-modal');
+            document.getElementById('modal-img').src = src; modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('opacity-100'), 10);
+        }
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.remove('opacity-100');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+        document.getElementById('close-modal').addEventListener('click', closeImageModal);
+
+        function deleteSlide(idx) { slidesData.splice(idx, 1); rebuildReviewArea(); }
+
+        function rebuildReviewArea() {
+            reviewArea.innerHTML = '';
+            slidesData.forEach((slide, i) => {
+                slide.index = i;
+                addSlideCardDOM(i, slide.fileUrl, slide.songTitle, slide.verseLabel, slide.rawText, slide.isManual);
+            });
+            checkAndClassifySlides();
+            if (slidesData.length === 0) toggleCompactDropzone(false);
+            if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
+        }
+
+        function handleSlideInputChange(i) {
+            const songTitle = document.getElementById(`sg-${i}`).value.trim();
+            const verse = document.getElementById(`at-${i}`).value.trim();
+            const text = document.getElementById(`ly-${i}`).value.trim();
+            slidesData[i].rawText = text; slidesData[i].songTitle = songTitle; slidesData[i].verseLabel = verse;
+            
+            if (slidesData[i].isManual) {
+                const newUrl = drawTextSlide(songTitle, verse, text);
+                slidesData[i].fileUrl = newUrl; document.getElementById(`img-p-${i}`).src = newUrl;
+            }
+            checkAndClassifySlides();
+            if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
+        }
+
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+            slidesData = []; reviewArea.innerHTML = ''; toggleCompactDropzone(false); fileInput.value = '';
+            if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
+            showNotification("전체 슬라이드가 초기화되었습니다.", "warning");
+        });
+
+        // [핵심 보완] 클린 텍스트 및 트리거 키워드 셋 보강
+        function checkAndClassifySlides() {
+            let currentSong = ""; let currentVerse = "";
             for (let i = 0; i < slidesData.length; i++) {
-                if (i === currentIndex) continue;
-                const targetFirstWord = slidesData[i].firstWord;
-                if (targetFirstWord && targetFirstWord.length >= 3) {
-                    if (checkPhoneticFuzzyMatch(speech, targetFirstWord) || checkPhoneticFuzzyMatch(rollingSpeechBuffer, targetFirstWord)) {
-                        lastTriggerTime = now; updateSlide(i); rollingSpeechBuffer = ""; return;
+                if (!slidesData[i]) continue;
+                const songInput = document.getElementById(`sg-${i}`);
+                const attrInput = document.getElementById(`at-${i}`);
+                const lyricInput = document.getElementById(`ly-${i}`);
+
+                let songValue = songInput ? songInput.value.trim() : (slidesData[i].songTitle || "");
+                let verseValue = attrInput ? attrInput.value.trim() : (slidesData[i].verseLabel || "");
+                let lyricValue = lyricInput ? lyricInput.value.trim() : (slidesData[i].rawText || "");
+
+                if (songValue !== "") { currentSong = songValue; }
+                else if (currentSong !== "" && songInput) { songInput.placeholder = currentSong; }
+                slidesData[i].songTitle = currentSong || "지정되지 않은 찬양";
+
+                if (verseValue !== "") { currentVerse = verseValue; }
+                else if (currentVerse !== "" && attrInput) { attrInput.placeholder = currentVerse; }
+
+                slidesData[i].rawText = lyricValue;
+                
+                // 불필요한 문장 기호를 완전히 제거한 클린 텍스트 생성
+                const cleanStr = lyricValue.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\-+\s]/g, "");
+                slidesData[i].cleanText = cleanStr;
+                
+                let isChorus = lyricValue.includes("후렴") || slidesData.some((s, idx) => idx !== i && s && s.cleanText === cleanStr && cleanStr.length > 5);
+                slidesData[i].isChorus = isChorus; slidesData[i].verseLabel = isChorus ? "후렴" : (currentVerse || "1절");
+
+                const card = document.getElementById(`card-${i}`);
+                if (card) {
+                    if (isChorus) card.classList.add('chorus-highlight');
+                    else card.classList.remove('chorus-highlight');
+                }
+                const badge = document.getElementById('badge-' + i);
+                if (badge) badge.innerText = `SLIDE ${i+1} [${slidesData[i].songTitle}] (${slidesData[i].verseLabel})`;
+                
+                // 첫 단어와 마지막 단어 세팅 (최소 3~4글자)
+                slidesData[i].firstWord = cleanStr.length >= 4 ? cleanStr.substring(0, 4) : cleanStr;
+                const lastLen = Math.min(3, cleanStr.length);
+                slidesData[i].lastWord = cleanStr.substring(cleanStr.length - lastLen);
+
+                // 진행률 측정을 위한 키워드 세팅
+                const cleanKeywords = lyricValue.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(/\s+/).filter(w => w.length >= 2);
+                slidesData[i].keywordsSet = new Set(cleanKeywords);
+            }
+
+            let seenSongs = new Set();
+            for (let i = 0; i < slidesData.length; i++) {
+                const container = document.getElementById(`fetch-lyrics-container-${i}`);
+                if (container) container.innerHTML = '';
+            }
+            for (let i = 0; i < slidesData.length; i++) {
+                let songName = slidesData[i].songTitle;
+                if (songName && !seenSongs.has(songName) && songName !== "지정되지 않은 찬양") {
+                    seenSongs.add(songName);
+                    const container = document.getElementById(`fetch-lyrics-container-${i}`);
+                    if (container) {
+                        const safeSongArg = escapeAttr(JSON.stringify(songName));
+                        container.innerHTML = `
+                            <button class="bg-warning text-bgDark text-xs px-2.5 py-1 rounded font-bold shadow-lg shadow-warning/20 hover:opacity-90 transition" onclick="openFetchLyricsModal(${safeSongArg}, ${i})">
+                                <i class="fa-solid fa-cloud-arrow-down"></i> 🌐 가사 가져오기
+                            </button>
+                        `;
+                    }
+                }
+            }
+        }
+
+        let currentFetchContext = { songTitle: "", startIdx: -1 };
+        function openFetchLyricsModal(songTitle, startIdx) {
+            currentFetchContext = { songTitle, startIdx };
+            let songSlides = [];
+            for (let i = startIdx; i < slidesData.length; i++) {
+                if (slidesData[i] && slidesData[i].songTitle === songTitle) songSlides.push(i);
+                else break;
+            }
+
+            const modal = document.getElementById('fetch-lyrics-modal');
+            const dbStatus = document.getElementById('fetch-db-status');
+            const lyricsArea = document.getElementById('fetch-lyrics-text');
+            document.getElementById('fetch-modal-title').innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> [${escapeHTML(songTitle)}] 스마트 가사 연동`;
+            lyricsArea.value = '';
+
+            let matchKey = Object.keys(onlineLyricsDatabase).find(key => {
+                return key.replace(/\s+/g, "").includes(songTitle.replace(/\s+/g, "")) || songTitle.replace(/\s+/g, "").includes(key.replace(/\s+/g, ""));
+            });
+
+            if (matchKey) {
+                dbStatus.innerHTML = `
+                    <span class="text-success font-bold"><i class="fa-solid fa-circle-check"></i> 로컬 라이브러리에 찬양이 존재합니다!</span><br>
+                    <span class="text-gray-400 text-xs">아래 가사가 해당 곡의 <strong class="text-accent">${songSlides.length}개</strong> 슬라이드에 균등 자동 배분(Autosplit)됩니다.</span>
+                `;
+                lyricsArea.value = onlineLyricsDatabase[matchKey].map(line => line.text).join('\n');
+            } else {
+                dbStatus.innerHTML = `
+                    <span class="text-warning font-bold"><i class="fa-solid fa-triangle-exclamation"></i> 외부 연동 가사 복사/붙여넣기 샌드박스 백업 모드</span><br>
+                    <span class="text-gray-400 text-xs">웹 검색을 통해 복사해 온 가사 전체를 붙여넣으시면 <strong class="text-accent">${songSlides.length}개</strong>의 슬라이드에 균등하게 자동 맞춤 배분됩니다.</span>
+                `;
+            }
+
+            document.getElementById('btn-apply-fetch').onclick = () => {
+                let enteredText = lyricsArea.value.trim();
+                if (!enteredText) { showNotification("가사 텍스트를 입력해 주세요.", "danger"); return; }
+                distributeLyricsToSongSlides(enteredText, songSlides, songTitle);
+                closeFetchLyricsModal();
+            };
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('opacity-100'), 10);
+        }
+
+        function closeFetchLyricsModal() {
+            const modal = document.getElementById('fetch-lyrics-modal');
+            modal.classList.remove('opacity-100');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function distributeLyricsToSongSlides(fullText, slideIndices, songTitle) {
+            let lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!lines.length) return;
+            let numSlides = slideIndices.length;
+            let linesPerSlide = Math.max(1, Math.ceil(lines.length / numSlides));
+
+            slideIndices.forEach((slideIdx, index) => {
+                let startLine = index * linesPerSlide;
+                let slideLines = lines.slice(startLine, startLine + linesPerSlide);
+                let slideText = slideLines.join('\n');
+
+                const lyricInput = document.getElementById(`ly-${slideIdx}`);
+                if (lyricInput) lyricInput.value = slideText;
+                slidesData[slideIdx].rawText = slideText;
+
+                if (slidesData[slideIdx].isManual) {
+                    let verse = document.getElementById(`at-${slideIdx}`)?.value.trim() || slidesData[slideIdx].verseLabel;
+                    let newUrl = drawTextSlide(songTitle, verse, slideText);
+                    slidesData[slideIdx].fileUrl = newUrl;
+                    if (document.getElementById(`img-p-${slideIdx}`)) {
+                        document.getElementById(`img-p-${slideIdx}`).src = newUrl;
+                    }
+                }
+            });
+            checkAndClassifySlides();
+            showNotification(`[${songTitle}] 가사가 ${numSlides}개의 슬라이드에 분배 완료되었습니다.`, "success");
+            if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
+        }
+
+        function saveProjectData() {
+            if(slidesData.length === 0) { showNotification("저장할 데이터가 없습니다.", "warning"); return; }
+            const configData = {
+                contiInput: document.getElementById('conti-input').value,
+                slides: slidesData.map((s, i) => ({
+                    songTitle: document.getElementById(`sg-${i}`) ? document.getElementById(`sg-${i}`).value : s.songTitle,
+                    verseLabel: document.getElementById(`at-${i}`) ? document.getElementById(`at-${i}`).value : s.verseLabel,
+                    rawText: document.getElementById(`ly-${i}`) ? document.getElementById(`ly-${i}`).value : s.rawText,
+                    fileUrl: s.fileUrl,
+                    isManual: s.isManual
+                }))
+            };
+            localStorage.setItem('praise_master_pro_v7', JSON.stringify(configData));
+            showNotification("현재 슬라이드 및 가사 정보가 LocalStorage에 저장되었습니다.", "success");
+        }
+
+        function loadProjectData() {
+            const raw = localStorage.getItem('praise_master_pro_v7');
+            if(!raw) { showNotification("저장된 프로젝트 설정이 없습니다.", "danger"); return; }
+            const configData = JSON.parse(raw);
+            document.getElementById('conti-input').value = configData.contiInput;
+            slidesData = configData.slides.map((s, i) => ({
+                index: i, fileUrl: s.fileUrl, rawText: s.rawText, songTitle: s.songTitle, verseLabel: s.verseLabel, isManual: s.isManual
+            }));
+            toggleCompactDropzone(true); rebuildReviewArea();
+            showNotification("이전 프로젝트 백업 정보 복구에 성공했습니다!", "success");
+        }
+
+        async function exportProjectFile() {
+            if(slidesData.length === 0) { showNotification("내보낼 세트리스트 데이터가 존재하지 않습니다.", "warning"); return; }
+            showNotification("악보 바이너리 데이터 패키징 변환을 시작합니다...", "warning");
+            
+            let packagedSlides = [];
+            for(let i=0; i<slidesData.length; i++) {
+                let s = slidesData[i];
+                let b64 = s.fileUrl;
+                if(b64.startsWith('blob:')) { b64 = await convertUrlToBase64(s.fileUrl); }
+                packagedSlides.push({
+                    songTitle: document.getElementById(`sg-${i}`) ? document.getElementById(`sg-${i}`).value : s.songTitle,
+                    verseLabel: document.getElementById(`at-${i}`) ? document.getElementById(`at-${i}`).value : s.verseLabel,
+                    rawText: document.getElementById(`ly-${i}`) ? document.getElementById(`ly-${i}`).value : s.rawText,
+                    fileUrl: b64,
+                    isManual: s.isManual
+                });
+            }
+            const dataStr = JSON.stringify({
+                contiInput: document.getElementById('conti-input').value,
+                slides: packagedSlides
+            });
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const exportFileDefaultName = '찬양세트리스트_' + new Date().toISOString().slice(0,10) + '.praise';
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            showNotification("통합 아카이브 .praise 파일 내보내기 완료!", "success");
+        }
+
+        function importProjectFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if(!parsed.slides || !parsed.hasOwnProperty('contiInput')) { throw new Error("포맷 불일치"); }
+                    document.getElementById('conti-input').value = parsed.contiInput;
+                    slidesData = parsed.slides.map((s, i) => ({
+                        index: i, fileUrl: s.fileUrl, rawText: s.rawText, songTitle: s.songTitle, verseLabel: s.verseLabel, isManual: s.isManual
+                    }));
+                    toggleCompactDropzone(true); rebuildReviewArea();
+                    showNotification(".praise 아카이브 파일로부터 악보와 가사를 완벽하게 복구했습니다!", "success");
+                } catch(err) {
+                    showNotification("올바른 .praise 프로젝트 파일이 아닙니다.", "danger");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function openLyricsDrawer() { updateFullLyricsView(); lyricsDrawer.classList.remove('normalize'); lyricsDrawer.style.right = "0"; lyricsDrawer.classList.add('active'); }
+        function closeLyricsDrawer() { lyricsDrawer.style.right = "-460px"; lyricsDrawer.classList.remove('active'); }
+
+        function updateFullLyricsView() {
+            drawerContent.innerHTML = "";
+            if (slidesData.length === 0) {
+                drawerContent.innerHTML = `<div class="text-gray-500 text-center pt-10 text-sm">등록된 가사 세션이 없습니다.</div>`; return;
+            }
+            let currentSongGroup = ""; let currentGroupDiv = null;
+            slidesData.forEach((slide, idx) => {
+                if (slide.songTitle !== currentSongGroup) {
+                    currentSongGroup = slide.songTitle;
+                    currentGroupDiv = document.createElement('div'); currentGroupDiv.className = 'border-b border-cardBorder/50 pb-3 mb-2';
+                    const groupTitle = document.createElement('div'); groupTitle.className = 'text-accent font-bold text-sm mb-2 flex items-center gap-1.5 neon-glow-accent';
+                    groupTitle.innerHTML = `<i class="fa-solid fa-music"></i> ${escapeHTML(currentSongGroup)}`;
+                    currentGroupDiv.appendChild(groupTitle); drawerContent.appendChild(currentGroupDiv);
+                }
+                const item = document.createElement('div');
+                const isCurrent = (liveScreen.style.display === 'flex' && idx === currentIndex);
+                
+                item.className = `p-3 mb-1.5 rounded-xl cursor-pointer border transition-all duration-200 ${isCurrent ? 'bg-accent/15 border-accent shadow-lg' : 'bg-bgDark/40 border-transparent hover:bg-cyan-950/20 hover:border-cardBorder'}`;
+                item.onclick = () => {
+                    if (liveScreen.style.display === 'flex') updateSlide(idx);
+                    else {
+                        const targetCard = document.getElementById(`card-${idx}`);
+                        if (targetCard) targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                };
+                item.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 text-[11px]">
+                        <span class="text-gray-500 font-bold font-mono">SLIDE ${idx + 1}</span>
+                        <span class="px-1.5 py-0.5 rounded font-bold ${slide.isChorus ? 'bg-pink-500/10 text-chorus' : 'bg-purple-500/10 text-verse'}">${escapeHTML(slide.verseLabel)}</span>
+                    </div>
+                    <div class="text-xs leading-relaxed font-sans whitespace-pre-line ${isCurrent ? 'text-white font-semibold' : 'text-gray-300'}">${escapeHTML(slide.rawText)}</div>
+                `;
+                currentGroupDiv.appendChild(item);
+            });
+        }
+
+        btnOpenDrawerSetup.addEventListener('click', openLyricsDrawer);
+        btnOpenDrawerLive.addEventListener('click', openLyricsDrawer);
+        btnCloseDrawer.addEventListener('click', closeLyricsDrawer);
+
+        function launchSystem() {
+            if (slidesData.length === 0) { showNotification("스마트 세트리스트 데이터가 빌드되지 않았습니다.", "warning"); return; }
+            checkAndClassifySlides();
+            setupScreen.style.display = 'none'; liveScreen.style.display = 'flex';
+            document.getElementById('btn-prev').disabled = false; document.getElementById('btn-next').disabled = false;
+            btnMicToggle.classList.remove('hidden'); btnProjector.classList.remove('hidden');
+            document.getElementById('btn-edit-back').classList.remove('hidden');
+            btnOpenDrawerLive.classList.remove('hidden'); btnOpenDrawerSetup.classList.add('hidden'); closeLyricsDrawer();
+            updateSlide(0);
+        }
+
+        /* -----------------------------------------------------------
+           4. 슬라이드 화면 전환 핵심 로직 (버퍼 초기화 포함)
+        ----------------------------------------------------------- */
+        function updateSlide(index) {
+            if (index < 0 || index >= slidesData.length) return;
+            if (currentIndex === index && document.getElementById('current-song-title').innerText !== "-") return;
+            
+            currentIndex = index; slideView.src = slidesData[currentIndex].fileUrl;
+            document.getElementById('page-counter').innerText = `${currentIndex + 1} / ${slidesData.length}`;
+            document.getElementById('current-song-title').innerText = slidesData[currentIndex].songTitle;
+
+            currentSlideKeywordsSet = slidesData[currentIndex].keywordsSet;
+            detectedKeywordsSet = new Set();
+            updateProgressBar(0);
+            
+            // [해결] 슬라이드 이동 시 잔상 방지용 완벽한 버퍼 초기화!
+            rollingSpeechBuffer = ""; 
+            globalFinalBuffer = "";
+
+            if (projectorWindow && !projectorWindow.closed) {
+                const pImg = projectorWindow.document.getElementById('p-img');
+                if (pImg) pImg.src = slidesData[currentIndex].fileUrl;
+            }
+            document.getElementById('next-trigger').innerText = slidesData[currentIndex].lastWord || "-";
+            renderSetlist();
+            if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
+        }
+
+        function renderSetlist() {
+            const setlistEl = document.getElementById('monitor-setlist'); if (!setlistEl) return;
+            setlistEl.innerHTML = ''; const uniqueSongs = [];
+            slidesData.forEach((slide, idx) => {
+                if (slide && !uniqueSongs.some(s => s.title === slide.songTitle)) {
+                    uniqueSongs.push({ title: slide.songTitle, startIndex: idx });
+                }
+            });
+
+            uniqueSongs.forEach((song, sIdx) => {
+                const item = document.createElement('div');
+                const isCurrent = slidesData[currentIndex] && slidesData[currentIndex].songTitle === song.title;
+                item.className = `flex justify-between items-center p-2 rounded-lg cursor-pointer transition text-xs border ${isCurrent ? 'bg-accent/10 border-accent text-accent font-bold' : 'bg-bgDark/40 border-cardBorder text-gray-300 hover:bg-slate-800'}`;
+                if (isCurrent) {
+                    item.innerHTML = `<span><i class="fa-solid fa-play mr-1"></i>${sIdx + 1}. ${escapeHTML(song.title)}</span><span class="text-[10px] tracking-wider text-accent font-black animate-pulse">ON AIR</span>`;
+                } else {
+                    item.innerHTML = `<span>${sIdx + 1}. ${escapeHTML(song.title)}</span><i class="fa-solid fa-chevron-right text-[10px] text-gray-500"></i>`;
+                }
+                item.onclick = () => updateSlide(song.startIndex);
+                setlistEl.appendChild(item);
+            });
+        }
+
+        function updateProgressBar(percent) {
+            currentProgress = Math.floor(percent);
+            progressBar.style.width = currentProgress + "%";
+            progressText.innerText = currentProgress + "%";
+            if(currentProgress >= 70) {
+                progressText.className = "font-bold text-success font-mono text-sm";
+            } else {
+                progressText.className = "font-bold text-accent font-mono";
+            }
+        }
+
+        /* -----------------------------------------------------------
+           5. STT 엔진 & 가창 판독 (부분 포함 방식 적용)
+        ----------------------------------------------------------- */
+        function initSTT() {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) { showNotification("구글 크롬 브라우저 환경에서만 동작합니다.", "danger"); return; }
+            recognition = new SR(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'ko-KR';
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('mic-status').innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-success inline-block mr-1.5 shadow-lg shadow-success/50 animate-ping"></span> ON`;
+                document.getElementById('mic-status').className = "flex items-center font-bold text-success";
+                btnMicToggle.innerHTML = `🛑 인식 중지`;
+                btnMicToggle.className = "bg-danger text-white px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2";
+            };
+
+            recognition.onerror = (e) => {
+                if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'network') {
+                    showNotification("마이크 권한 거부 또는 브레이브 브라우저 차단이 감지되었습니다. 크롬(Chrome) 브라우저를 사용해 주세요.", "danger");
+                    isListening = false;
+                    document.getElementById('mic-status').innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-danger inline-block mr-1.5 shadow-lg shadow-danger/50"></span> OFF`;
+                    document.getElementById('mic-status').className = "flex items-center font-bold text-danger";
+                    btnMicToggle.innerHTML = `🎙️ 음성 인식 시작`;
+                    btnMicToggle.className = "bg-accent text-bgDark px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2";
+                }
+            };
+
+            recognition.onresult = (e) => {
+                let interim = ''; let final = '';
+                for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    if (e.results[i].isFinal) final += e.results[i][0].transcript;
+                    else interim += e.results[i][0].transcript;
+                }
+                
+                if (final.length > 0) {
+                    globalFinalBuffer += final.replace(/\s+/g, '');
+                    globalFinalBuffer = globalFinalBuffer.slice(-100);
+                }
+                const currentInterim = interim.replace(/\s+/g, '');
+                rollingSpeechBuffer = (globalFinalBuffer + currentInterim).slice(-100);
+                
+                voicePreview.textContent = (final + interim).trim() || "...";
+
+                for (let keyword of currentSlideKeywordsSet) {
+                    if (keyword.length < 2) continue;
+                    if (detectedKeywordsSet.has(keyword)) continue;
+
+                    if (checkPhoneticFuzzyMatch(rollingSpeechBuffer, keyword, 0.70)) {
+                        detectedKeywordsSet.add(keyword);
+                    }
+                }
+
+                if (currentSlideKeywordsSet.size > 0) {
+                    updateProgressBar((detectedKeywordsSet.size / currentSlideKeywordsSet.size) * 100);
+                } else {
+                    updateProgressBar(0);
+                }
+                
+                // 버퍼가 갱신될 때마다 스킵 조건을 체크합니다.
+                checkSpeechMatch(rollingSpeechBuffer);
+            };
+
+            recognition.onend = () => {
+                if (!isListening) return;
+                setTimeout(() => {
+                    if (isListening) {
+                        try { recognition.start(); } catch (err) { isListening = false; btnMicToggle.innerHTML = `🎙️ 음성 인식 시작`; btnMicToggle.className = "bg-accent text-bgDark px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2"; }
+                    }
+                }, 300);
+            };
+            try { recognition.start(); } catch (err) { isListening = false; }
+        }
+
+        // [🔒 핵심 해결] 단순 포함 방식으로 트리거 판독 조건 대폭 완화!
+        function checkSpeechMatch(speechStr = rollingSpeechBuffer) {
+            const now = Date.now();
+            if (now - lastTriggerTime < 2500) return;
+
+            // [1] 수동 인터럽트 워프 (진행률 무관)
+            if (speechStr.includes("일절") || speechStr.includes("1절") || speechStr.includes("일저")) { jumpToVerse("1절"); return; }
+            if (speechStr.includes("이절") || speechStr.includes("2절") || speechStr.includes("이저")) { jumpToVerse("2절"); return; }
+            if (speechStr.includes("삼절") || speechStr.includes("3절") || speechStr.includes("삼저")) { jumpToVerse("3절"); return; }
+            if (speechStr.includes("후렴") || speechStr.includes("코러스") || speechStr.includes("후려")) { jumpToVerse("후렴"); return; }
+
+            // [2] 다음 슬라이드 선진입 감지 스킵
+            if (currentIndex < slidesData.length - 1) {
+                const nextFirstWord = slidesData[currentIndex + 1].firstWord;
+                if (nextFirstWord && nextFirstWord.length >= 3) {
+                    if (checkPhoneticFuzzyMatch(speechStr, nextFirstWord, 0.72)) {
+                        lastTriggerTime = now; updateSlide(currentIndex + 1);
+                        showNotification("다음 가사 진입 감지: 자동 스킵 완료", "success"); return;
                     }
                 }
             }
 
-            // ⭐ [안전가드 해제 검증]
+            // [3] 다른 파트로의 워프 검증
+            for (let i = 0; i < slidesData.length; i++) {
+                if (i === currentIndex || i === currentIndex + 1) continue;
+                const targetFirstWord = slidesData[i].firstWord;
+                if (targetFirstWord && targetFirstWord.length >= 4) {
+                    if (checkPhoneticFuzzyMatch(speechStr, targetFirstWord, 0.80)) {
+                        lastTriggerTime = now; updateSlide(i);
+                        showNotification(`[${slidesData[i].songTitle}] (${slidesData[i].verseLabel}) 파트 워프`, "success"); return;
+                    }
+                }
+            }
+
+            // ⭐ 70% 락
             if (currentProgress < 70) return;
 
-            // [3순위] 자동 스킵 (수정됨: 70% 진행률 달성 시 키워드가 '포함'되기만 하면 넘어감)
+            // [4 - 해결!] 70% 진행 후, 버퍼 마지막 5글자(또는 전체 버퍼) 안에 트리거 단어가 단순히 '포함'되어 있으면 넘어감
             const cur = slidesData[currentIndex];
             if (cur.lastWord && cur.lastWord.length >= 2) {
-                // 수정 포인트: 인식된 전체 문장에 마지막 키워드가 '포함'되어 있는지 확인 (유연한 매칭)
-                if (speech.includes(cur.lastWord) || rollingSpeechBuffer.includes(cur.lastWord)) {
+                const tailBuffer = speechStr.slice(-10); // 최근 발음된 10글자 내역만 검사
+                if (tailBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(tailBuffer, cur.lastWord, 0.65)) {
                     if (currentIndex < slidesData.length - 1) {
                         lastTriggerTime = now;
                         updateSlide(currentIndex + 1);
-                        showNotification("가창 완료: 다음 장 이동", "success");
-                        rollingSpeechBuffer = "";
+                        console.log("Trigger Activated:", cur.lastWord, "in", tailBuffer); // 디버깅 로그
+                        showNotification("현재 가사 완료 감지: 다음 장 이동", "success");
                         return;
                     }
                 }
             }
         }
 
-<!-- ... 이후 코드 동일 (생략) ... -->
-```
+        function jumpToVerse(label) {
+            const currentSong = slidesData[currentIndex].songTitle;
+            let idx = slidesData.findIndex(s => s && s.songTitle === currentSong && s.verseLabel === label);
+            if (idx === -1) idx = slidesData.findIndex(s => s && s.verseLabel === label);
+            if (idx !== -1 && idx !== currentIndex) { 
+                lastTriggerTime = Date.now(); updateSlide(idx); 
+            }
+        }
 
-### 💡 확인 방법
-1. 코드를 적용한 후 프로그램을 실행합니다.
-2. `F12` 키를 눌러 개발자 도구를 엽니다.
-3. 콘솔(Console) 탭을 보면 현재 어떤 단어가 트리거 키워드로 인식되고 있는지 실시간으로 출력됩니다.
-4. 만약 여전히 넘어가지 않는다면, 인식되고 있는 `speech` 텍스트와 `lastWord`가 무엇인지 확인하여 알려주세요. 그에 맞춰 트리거를 즉시 재조정해 드릴 수 있습니다.
+        btnMicToggle.addEventListener('click', () => {
+            if (!recognition) { initSTT(); return; }
+            if (isListening) {
+                isListening = false; recognition.stop();
+                document.getElementById('mic-status').innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-danger inline-block mr-1.5 shadow-lg shadow-danger/50"></span> OFF`;
+                document.getElementById('mic-status').className = "flex items-center font-bold text-danger";
+                btnMicToggle.innerHTML = `🎙️ 음성 인식 시작`;
+                btnMicToggle.className = "bg-accent text-bgDark px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2";
+            } else { try { recognition.start(); } catch (err) {} }
+        });
 
-이제 "사랑하시네"의 "하시네" 부분만 들려도 바로 반응할 것입니다!
+        btnProjector.addEventListener('click', () => {
+            projectorWindow = window.open('', 'P', 'width=1280,height=720');
+            if (!projectorWindow) { showNotification("브라우저 팝업 차단을 해제해 주세요.", "warning"); return; }
+            projectorWindow.document.write(`<html><head><title>프로젝터 듀얼 미러링 스크린</title><style>body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; } img { width: 100vw; height: 100vh; object-fit: fill; }</style></head><body><img id="p-img" src="${slidesData[currentIndex].fileUrl}"></body></html>`);
+            projectorWindow.document.close();
+        });
+
+        document.getElementById('btn-next').onclick = () => { document.activeElement.blur(); updateSlide(currentIndex + 1); };
+        document.getElementById('btn-prev').onclick = () => { document.activeElement.blur(); updateSlide(currentIndex - 1); };
+        document.getElementById('btn-edit-back').onclick = () => { 
+            setupScreen.style.display='flex'; liveScreen.style.display='none'; 
+            document.getElementById('btn-edit-back').classList.add('hidden');
+            btnMicToggle.classList.add('hidden'); btnProjector.classList.add('hidden');
+            btnOpenDrawerLive.classList.add('hidden'); btnOpenDrawerSetup.classList.remove('hidden'); closeLyricsDrawer();
+        };
+
+        function syncLyricsWithConti() {
+            if (slidesData.length === 0) return;
+            const derivedLyricsList = fetchOnlineLyricsForConti();
+            slidesData.forEach((slide, idx) => {
+                const matched = derivedLyricsList[idx];
+                if (matched) {
+                    slide.songTitle = matched.songTitle; slide.verseLabel = matched.verse; slide.rawText = matched.text;
+                    if (document.getElementById(`sg-${idx}`)) document.getElementById(`sg-${idx}`).value = matched.songTitle;
+                    if (document.getElementById(`at-${idx}`)) document.getElementById(`at-${idx}`).value = matched.verse;
+                    if (document.getElementById(`ly-${idx}`)) document.getElementById(`ly-${idx}`).value = matched.text;
+                    if (slide.isManual) {
+                        slide.fileUrl = drawTextSlide(matched.songTitle, matched.verse, matched.text);
+                        if (document.getElementById(`img-p-${idx}`)) document.getElementById(`img-p-${idx}`).src = slide.fileUrl;
+                    }
+                }
+            });
+            checkAndClassifySlides();
+            if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
+        }
+
+        document.getElementById('btn-sync-conti').addEventListener('click', syncLyricsWithConti);
+
+        let debounceTimeout;
+        document.getElementById('conti-input').addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => { if (slidesData.length > 0) syncLyricsWithConti(); }, 1000);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { closeImageModal(); closeFetchLyricsModal(); closeLyricsDrawer(); return; }
+            if (liveScreen.style.display === 'flex') {
+                if (e.key >= '0' && e.key <= '9') {
+                    document.activeElement.blur(); clearTimeout(jumpTimeout); jumpBuffer += e.key;
+                    document.getElementById('jump-hud').classList.remove('hidden'); document.getElementById('hud-number').innerText=jumpBuffer;
+                    jumpTimeout = setTimeout(() => { jumpBuffer=""; document.getElementById('jump-hud').classList.add('hidden'); }, 4000);
+                }
+                if (e.key === 'Enter' && jumpBuffer) {
+                    e.preventDefault(); updateSlide(parseInt(jumpBuffer)-1); jumpBuffer=""; document.getElementById('jump-hud').classList.add('hidden');
+                }
+                if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); updateSlide(currentIndex+1); }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); updateSlide(currentIndex-1); }
+            }
+        });
+    </script>
+</body>
+</html>
