@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4 (최종 안정화 버전)</title>
+    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4 (안정화 버전)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -50,7 +50,6 @@
                 <p class="text-gray-400 mt-3 text-lg">음성 분석 및 한글 자모 분석 기술 기반 실시간 찬양 세트리스트 송출 제어기 (안정화 버전)</p>
             </div>
             
-            <!-- 프로젝트 저장/불러오기 기능 -->
             <div class="flex flex-wrap gap-3 justify-end mb-4">
                 <button class="bg-cardBg border border-cardBorder text-gray-300 px-4 py-2 rounded-lg font-bold hover:bg-slate-800 transition flex items-center gap-2" onclick="exportProjectFile()"><i class="fa-solid fa-file-export text-warning"></i> 📂 파일 내보내기 (.praise)</button>
                 <button class="bg-cardBg border border-cardBorder text-gray-300 px-4 py-2 rounded-lg font-bold hover:bg-slate-800 transition flex items-center gap-2" onclick="document.getElementById('import-file-input').click()"><i class="fa-solid fa-file-import text-accent"></i> 📥 파일 가져오기</button>
@@ -117,7 +116,7 @@
             <!-- 진행률 표시 (80% 기준) -->
             <div class="flex flex-col text-xs mt-2 pt-2 border-t border-cardBorder/50">
                 <div class="flex justify-between w-full mb-1 font-semibold">
-                    <span class="text-gray-400">가창 매칭 진행률 (안전락 해제 기준: 80%)</span>
+                    <span class="text-gray-400">가창 매칭 진행률 (안전락 해제: 80%)</span>
                     <span id="progress-text" class="font-bold text-accent font-mono">0%</span>
                 </div>
                 <div class="w-full h-2.5 bg-bgDark border border-cardBorder rounded-full overflow-hidden">
@@ -125,9 +124,8 @@
                 </div>
             </div>
 
-            <!-- 다음 트리거 표시 -->
             <div class="flex flex-col text-xs mt-3">
-                <span class="text-gray-400 font-semibold mb-1"><i class="fa-solid fa-circle-right text-cyan-400"></i> 다음 슬라이드 이동 키워드 (Trigger)</span>
+                <span class="text-gray-400 font-semibold mb-1"><i class="fa-solid fa-circle-right text-cyan-400"></i> 오토 엔드 스킵 트리거 키워드</span>
                 <span id="next-trigger" class="text-cyan-300 font-bold text-sm bg-bgDark/60 p-1.5 rounded border border-cardBorder/40 text-center">-</span>
             </div>
 
@@ -288,10 +286,10 @@
         let detectedKeywordsSet = new Set();
         let currentProgress = 0;
         
-        // ⭐ 세분화된 3단계 STT 버퍼 시스템 (오동작 완전 차단)
-        let progressBuffer = ""; // 가창 진행률 채점을 위한 누적 버퍼
-        let jumpBuffer = "";     // 다른 절(1절, 후렴)로 이동하기 위한 최근 15글자 버퍼
-        let endingBuffer = "";   // 마지막 자동 넘김을 위한 최근 8글자 버퍼
+        // ⭐ 세분화된 3단계 STT 버퍼 시스템
+        let progressBuffer = ""; // 가창 진행률 누적
+        let jumpBuffer = "";     // 다른 절/곡 점프 감지
+        let endingBuffer = "";   // 마지막 단어 감지
 
         const onlineLyricsDatabase = {
             "내모습이대로": [
@@ -374,6 +372,8 @@
         const btnOpenDrawerSetup = document.getElementById('btn-open-drawer-setup');
         const btnOpenDrawerLive = document.getElementById('btn-open-drawer-live');
         const btnCloseDrawer = document.getElementById('close-drawer');
+
+        setInterval(() => { document.getElementById('system-time').textContent = new Date().toTimeString().split(' ')[0]; }, 1000);
 
         /* -----------------------------------------------------------
            3. UI 렌더링 및 슬라이드 관리
@@ -695,9 +695,10 @@
                 const badge = document.getElementById('badge-' + i);
                 if (badge) badge.innerText = `SLIDE ${i+1} [${slidesData[i].songTitle}] (${slidesData[i].verseLabel})`;
                 
-                slidesData[i].firstWord = compressed.length >= 4 ? compressed.substring(0, 4) : compressed;
+                // ⭐ 오작동 방지 1: 도입부 및 엔딩 키워드 확장 (첫단어 6자, 마지막단어 8자)
+                slidesData[i].firstWord = compressed.length >= 6 ? compressed.substring(0, 6) : compressed;
                 
-                const lastLen = Math.min(3, compressed.length);
+                const lastLen = Math.min(8, compressed.length);
                 slidesData[i].lastWord = compressed.substring(compressed.length - lastLen);
 
                 // 형태소 키워드 가사 클린 파싱 적용 (문장 부호 제거)
@@ -706,6 +707,7 @@
                     .split(/\s+/)
                     .filter(w => w.length >= 2);
                 slidesData[i].keywordsSet = new Set(cleanKeywords);
+                slidesData[i].lastWordHit = 0; // 힛 카운터 초기화
             }
 
             let seenSongs = new Set();
@@ -952,7 +954,7 @@
             detectedKeywordsSet = new Set();
             updateProgressBar(0);
             
-            // ⭐ 안전한 슬라이드 이동을 위한 모든 버퍼 완벽 초기화
+            // ⭐ 오작동 방지 2: 완전히 새로운 슬라이드로 이동할 때만 모든 버퍼 완벽 초기화 (이전 슬라이드의 가창 잔상 제거)
             progressBuffer = "";
             jumpBuffer = "";
             endingBuffer = "";
@@ -1034,15 +1036,18 @@
                     else interim += e.results[i][0].transcript;
                 }
                 
-                // ⭐ 안정성을 극대화한 3단계 분할 버퍼 로직
+                // ⭐ 오작동 방지 3: 안정성을 극대화한 3단계 분할 버퍼 로직
                 if (final.length > 0) {
                     progressBuffer += final.replace(/\s+/g, '');
+                    // 누적 버퍼가 너무 길어지지 않게 관리하되, 슬라이드 가사를 모두 담을 수 있게 200자로 유지
+                    if (progressBuffer.length > 200) progressBuffer = progressBuffer.slice(-200);
                 }
                 const currentInterim = interim.replace(/\s+/g, '');
                 const currentFullSpeech = progressBuffer + currentInterim;
 
-                jumpBuffer = currentFullSpeech.slice(-15);   // 절 점프 검사용
-                endingBuffer = currentFullSpeech.slice(-8);  // 마지막 가사 확인용
+                // 절 점프 검사용 (20자) / 마지막 가사 확인용 (15자) 분리
+                jumpBuffer = currentFullSpeech.slice(-20);   
+                endingBuffer = currentFullSpeech.slice(-15); 
                 
                 voicePreview.textContent = (final + interim).trim() || "...";
 
@@ -1090,14 +1095,14 @@
             if (jumpBuffer.includes("삼절") || jumpBuffer.includes("3절") || jumpBuffer.includes("삼저")) { jumpToVerse("3절"); return; }
             if (jumpBuffer.includes("후렴") || jumpBuffer.includes("코러스") || jumpBuffer.includes("후려")) { jumpToVerse("후렴"); return; }
 
-            // [우선순위 2] 현재 슬라이드의 첫 가사를 반복하여 부른 경우 점프 무시 (Self-repeating 방어)
+            // ⭐ 오작동 방지 4: 현재 슬라이드의 첫 가사를 반복하여 부른 경우 점프 무시 (Self-repeating 방어)
             const currentFirstWord = cur.firstWord;
             let isSelfRepeating = false;
             if (currentFirstWord && checkPhoneticFuzzyMatch(jumpBuffer, currentFirstWord, 0.90)) {
                 isSelfRepeating = true;
             }
 
-            // [우선순위 3] 동일 곡 내의 다른 절(1절, 2절, 후렴)로 자연스러운 점프 (다른 곡으로의 점프 차단)
+            // ⭐ 오작동 방지 5: 동일 곡 내의 다른 절(1절, 2절, 후렴)로 자연스러운 점프 (다른 곡으로의 점프 차단)
             if (!isSelfRepeating) {
                 const currentSong = cur.songTitle;
                 for (let i = 0; i < slidesData.length; i++) {
@@ -1108,6 +1113,7 @@
                     if (!["1절","2절","3절","후렴"].includes(slidesData[i].verseLabel)) continue;
 
                     const firstWord = slidesData[i].firstWord;
+                    // 6자리 문자에 대한 0.92 매칭은 매우 엄격한 유사도를 요구함
                     if (firstWord && checkPhoneticFuzzyMatch(jumpBuffer, firstWord, 0.92)) {
                         lastTriggerTime = now;
                         updateSlide(i);
@@ -1117,9 +1123,10 @@
                 }
             }
 
-            // ⭐ [우선순위 4] 마지막 가사 자동 넘김 로직 (진행도 80% 달성 + 마지막 단어 2회 연속 감지)
+            // ⭐ 오작동 방지 6: [우선순위 4] 마지막 가사 자동 넘김 로직 (진행도 80% 달성 + 마지막 단어 2회 연속 감지)
             if (currentProgress >= 80) {
-                const lastMatched = endingBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(endingBuffer, cur.lastWord, 0.88);
+                // 8글자 길이에 대한 0.85 임계값은 1개의 오타 정도만 허용합니다.
+                const lastMatched = endingBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(endingBuffer, cur.lastWord, 0.85);
                 
                 if (lastMatched) {
                     cur.lastWordHit = (cur.lastWordHit || 0) + 1;
@@ -1208,12 +1215,12 @@
             if (e.key === 'Escape') { closeImageModal(); closeFetchLyricsModal(); closeLyricsDrawer(); return; }
             if (liveScreen.style.display === 'flex') {
                 if (e.key >= '0' && e.key <= '9') {
-                    document.activeElement.blur(); clearTimeout(jumpTimeout); jumpBuffer += e.key;
-                    document.getElementById('jump-hud').classList.remove('hidden'); document.getElementById('hud-number').innerText=jumpBuffer;
-                    jumpTimeout = setTimeout(() => { jumpBuffer=""; document.getElementById('jump-hud').classList.add('hidden'); }, 4000);
+                    document.activeElement.blur(); clearTimeout(jumpTimeout); jumpBufferText += e.key;
+                    document.getElementById('jump-hud').classList.remove('hidden'); document.getElementById('hud-number').innerText=jumpBufferText;
+                    jumpTimeout = setTimeout(() => { jumpBufferText=""; document.getElementById('jump-hud').classList.add('hidden'); }, 4000);
                 }
-                if (e.key === 'Enter' && jumpBuffer) {
-                    e.preventDefault(); updateSlide(parseInt(jumpBuffer)-1); jumpBuffer=""; document.getElementById('jump-hud').classList.add('hidden');
+                if (e.key === 'Enter' && jumpBufferText) {
+                    e.preventDefault(); updateSlide(parseInt(jumpBufferText)-1); jumpBufferText=""; document.getElementById('jump-hud').classList.add('hidden');
                 }
                 if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); updateSlide(currentIndex+1); }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); updateSlide(currentIndex-1); }
