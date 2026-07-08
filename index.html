@@ -281,15 +281,17 @@
         let isListening = false;
         let lastTriggerTime = 0;
         let projectorWindow = null;
-        let jumpBuffer = "";
+        let jumpBufferText = "";
         let jumpTimeout = null;
+        
         let currentSlideKeywordsSet = new Set();
         let detectedKeywordsSet = new Set();
         let currentProgress = 0;
         
-        // 롤링 버퍼 및 전역 버퍼 (단 한 번 선언)
-        let rollingSpeechBuffer = ""; 
-        let globalFinalBuffer = "";
+        // ⭐ 세분화된 3단계 STT 버퍼 시스템 (오동작 완전 차단)
+        let progressBuffer = ""; // 가창 진행률 채점을 위한 누적 버퍼
+        let jumpBuffer = "";     // 다른 절(1절, 후렴)로 이동하기 위한 최근 15글자 버퍼
+        let endingBuffer = "";   // 마지막 자동 넘김을 위한 최근 8글자 버퍼
 
         const onlineLyricsDatabase = {
             "내모습이대로": [
@@ -372,8 +374,6 @@
         const btnOpenDrawerSetup = document.getElementById('btn-open-drawer-setup');
         const btnOpenDrawerLive = document.getElementById('btn-open-drawer-live');
         const btnCloseDrawer = document.getElementById('close-drawer');
-
-        setInterval(() => { document.getElementById('system-time').textContent = new Date().toTimeString().split(' ')[0]; }, 1000);
 
         /* -----------------------------------------------------------
            3. UI 렌더링 및 슬라이드 관리
@@ -700,6 +700,7 @@
                 const lastLen = Math.min(3, compressed.length);
                 slidesData[i].lastWord = compressed.substring(compressed.length - lastLen);
 
+                // 형태소 키워드 가사 클린 파싱 적용 (문장 부호 제거)
                 const cleanKeywords = lyricValue
                     .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
                     .split(/\s+/)
@@ -792,6 +793,7 @@
                 if (lyricInput) lyricInput.value = slideText;
                 slidesData[slideIdx].rawText = slideText;
 
+                // 가사가 분배된 뒤 수동 생성형 슬라이드의 이미지를 실시간 갱신 (리렌더링 보장)
                 let verse = document.getElementById(`at-${slideIdx}`)?.value.trim() || slidesData[slideIdx].verseLabel;
                 let newUrl = drawTextSlide(songTitle, verse, slideText);
                 slidesData[slideIdx].fileUrl = newUrl;
@@ -804,6 +806,7 @@
             if (lyricsDrawer.classList.contains('active')) updateFullLyricsView();
         }
 
+        // [📂 프로젝트 로컬 세션 저장 및 불러오기 엔진]
         function saveProjectData() {
             if(slidesData.length === 0) { showNotification("저장할 데이터가 없습니다.", "warning"); return; }
             const configData = {
@@ -832,6 +835,7 @@
             showNotification("이전 프로젝트 백업 정보 복구에 성공했습니다!", "success");
         }
 
+        // [📂 .praise 파일 확장자 기반 완벽 통합 패키징 비동기 추출 엔진]
         async function exportProjectFile() {
             if(slidesData.length === 0) { showNotification("내보낼 세트리스트 데이터가 존재하지 않습니다.", "warning"); return; }
             showNotification("악보 바이너리 데이터 패키징 변환을 시작합니다...", "warning");
@@ -940,7 +944,7 @@
 
         function updateSlide(index) {
             if (index < 0 || index >= slidesData.length) return;
-            if (currentIndex === index && document.getElementById('current-song-title').innerText !== "-") return; 
+            if (currentIndex === index && document.getElementById('current-song-title').innerText !== "-") return; // 동일 슬라이드 중복 초기화 락킹 방어
             
             currentIndex = index; slideView.src = slidesData[currentIndex].fileUrl;
             document.getElementById('page-counter').innerText = `${currentIndex + 1} / ${slidesData.length}`;
@@ -950,9 +954,11 @@
             detectedKeywordsSet = new Set();
             updateProgressBar(0);
             
-            // ⭐ 핵심 수정: 슬라이드 이동 시 이전 가창 버퍼의 완벽한 초기화로 오작동(이중 스킵 등) 원천 차단
-            rollingSpeechBuffer = ""; 
-            globalFinalBuffer = "";
+            // ⭐ 안전한 슬라이드 이동을 위한 모든 버퍼 완벽 초기화
+            progressBuffer = "";
+            jumpBuffer = "";
+            endingBuffer = "";
+            if (slidesData[currentIndex]) slidesData[currentIndex].lastWordHit = 0;
 
             if (projectorWindow && !projectorWindow.closed) {
                 const pImg = projectorWindow.document.getElementById('p-img');
@@ -1010,10 +1016,11 @@
                 btnMicToggle.className = "bg-danger text-white px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition text-sm flex items-center gap-2";
             };
 
+            // 브레이브 브라우저 차단 감지 오류 캐치 로직
             recognition.onerror = (e) => {
                 console.warn("Speech Recognition Error:", e.error);
                 if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'network') {
-                    showNotification("마이크 권한 거부 또는 브라우저 차단이 감지되었습니다. 크롬(Chrome)을 사용해 주세요.", "danger");
+                    showNotification("마이크 권한 거부 또는 브레이브(Brave) 브라우저 차단이 감지되었습니다. 크롬(Chrome) 브라우저를 사용해 주세요.", "danger");
                     isListening = false;
                     document.getElementById('mic-status').innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-danger inline-block mr-1.5 shadow-lg shadow-danger/50"></span> OFF`;
                     document.getElementById('mic-status').className = "flex items-center font-bold text-danger";
@@ -1029,22 +1036,26 @@
                     else interim += e.results[i][0].transcript;
                 }
                 
+                // ⭐ 안정성을 극대화한 3단계 분할 버퍼 로직
                 if (final.length > 0) {
-                    globalFinalBuffer += final.replace(/\s+/g, '');
+                    progressBuffer += final.replace(/\s+/g, '');
                 }
-                
                 const currentInterim = interim.replace(/\s+/g, '');
-                rollingSpeechBuffer = (globalFinalBuffer + currentInterim).slice(-150); 
+                const currentFullSpeech = progressBuffer + currentInterim;
+
+                jumpBuffer = currentFullSpeech.slice(-15);   // 절 점프 검사용
+                endingBuffer = currentFullSpeech.slice(-8);  // 마지막 가사 확인용
                 
                 voicePreview.textContent = (final + interim).trim() || "...";
 
                 // 가창 진행률 채점 (clear 없이 누적 유지)
                 for (let keyword of currentSlideKeywordsSet) {
                     if (keyword.length < 2) continue;
-                    if (detectedKeywordsSet.has(keyword)) continue; // 이미 인식된 건 스킵
+                    if (detectedKeywordsSet.has(keyword)) continue;
 
                     let cleanKeyword = keyword.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-                    if (rollingSpeechBuffer.includes(cleanKeyword) || checkPhoneticFuzzyMatch(rollingSpeechBuffer.slice(-30), cleanKeyword, 0.85)) {
+                    // 전체 진행 버퍼를 검사하여 누락 방지
+                    if (currentFullSpeech.includes(cleanKeyword) || checkPhoneticFuzzyMatch(currentFullSpeech.slice(-30), cleanKeyword, 0.85)) {
                         detectedKeywordsSet.add(keyword);
                     }
                 }
@@ -1071,30 +1082,61 @@
         // [🔒 가창 안전락 프로세서 및 자동 전환 기믹 메커니즘]
         function checkSpeechMatch() {
             const now = Date.now();
-            if (now - lastTriggerTime < 2500) return;
+            if (now - lastTriggerTime < 2500) return; // 연속 스킵 방지 쿨다운 레이어
 
-            const recentBuffer = rollingSpeechBuffer.slice(-20);
-
-            // [우선순위 1] 명시적 절수 음성 인터럽트 워프 (진행도 무관 무조건 이동)
-            if (recentBuffer.includes("일절") || recentBuffer.includes("1절") || recentBuffer.includes("일저")) { jumpToVerse("1절"); return; }
-            if (recentBuffer.includes("이절") || recentBuffer.includes("2절") || recentBuffer.includes("이저")) { jumpToVerse("2절"); return; }
-            if (recentBuffer.includes("삼절") || recentBuffer.includes("3절") || recentBuffer.includes("삼저")) { jumpToVerse("3절"); return; }
-            if (recentBuffer.includes("후렴") || recentBuffer.includes("코러스") || recentBuffer.includes("후려")) { jumpToVerse("후렴"); return; }
-
-            // ⭐ [안전가드 레이어 해제 검증] 가창 진행률이 80% 미만이면 자동 페이지 전환 영구 잠금(Lock)
-            if (currentProgress < 80) return;
-
-            // [우선순위 2] 진행률 80% 충족 상태에서 마지막 어절/가사(End Trigger) 매치 판별 시 자동 다음 장 전환
             const cur = slidesData[currentIndex];
-            if (cur.lastWord && cur.lastWord.length >= 2) {
-                // 정확도 높은 매칭을 위해 타겟 단어와 최근 발음 버퍼 비교
-                if (recentBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(recentBuffer, cur.lastWord, 0.80)) {
-                    if (currentIndex < slidesData.length - 1) {
+
+            // [우선순위 1] 명시적 절수 음성 인터럽트 워프 (항시 허용)
+            if (jumpBuffer.includes("일절") || jumpBuffer.includes("1절") || jumpBuffer.includes("일저")) { jumpToVerse("1절"); return; }
+            if (jumpBuffer.includes("이절") || jumpBuffer.includes("2절") || jumpBuffer.includes("이저")) { jumpToVerse("2절"); return; }
+            if (jumpBuffer.includes("삼절") || jumpBuffer.includes("3절") || jumpBuffer.includes("삼저")) { jumpToVerse("3절"); return; }
+            if (jumpBuffer.includes("후렴") || jumpBuffer.includes("코러스") || jumpBuffer.includes("후려")) { jumpToVerse("후렴"); return; }
+
+            // [우선순위 2] 현재 슬라이드의 첫 가사를 반복하여 부른 경우 점프 무시 (Self-repeating 방어)
+            const currentFirstWord = cur.firstWord;
+            let isSelfRepeating = false;
+            if (currentFirstWord && checkPhoneticFuzzyMatch(jumpBuffer, currentFirstWord, 0.90)) {
+                isSelfRepeating = true;
+            }
+
+            // [우선순위 3] 동일 곡 내의 다른 절(1절, 2절, 후렴)로 자연스러운 점프 (다른 곡으로의 점프 차단)
+            if (!isSelfRepeating) {
+                const currentSong = cur.songTitle;
+                for (let i = 0; i < slidesData.length; i++) {
+                    if (i === currentIndex) continue;
+                    // 현재 부르고 있는 곡 안에서만 검사 허용
+                    if (slidesData[i].songTitle !== currentSong) continue;
+                    // 주요 절 단위(1, 2, 3절, 후렴)만 매칭 대상에 포함
+                    if (!["1절","2절","3절","후렴"].includes(slidesData[i].verseLabel)) continue;
+
+                    const firstWord = slidesData[i].firstWord;
+                    if (firstWord && checkPhoneticFuzzyMatch(jumpBuffer, firstWord, 0.92)) {
                         lastTriggerTime = now;
-                        updateSlide(currentIndex + 1);
-                        showNotification("현재 가사 완료 감지: 다음 장 이동", "success");
+                        updateSlide(i);
+                        showNotification(`[${slidesData[i].verseLabel}] 파트 이동`, "success");
                         return;
                     }
+                }
+            }
+
+            // ⭐ [우선순위 4] 마지막 가사 자동 넘김 로직 (진행도 80% 달성 + 마지막 단어 2회 연속 감지)
+            if (currentProgress >= 80) {
+                const lastMatched = endingBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(endingBuffer, cur.lastWord, 0.88);
+                
+                if (lastMatched) {
+                    cur.lastWordHit = (cur.lastWordHit || 0) + 1;
+                    // 디바운스 적용: 노이즈가 아닌 실제 사람이 부르는 것임을 2회 타격으로 검증
+                    if (cur.lastWordHit >= 2) {
+                        cur.lastWordHit = 0;
+                        lastTriggerTime = now;
+                        if (currentIndex < slidesData.length - 1) {
+                            updateSlide(currentIndex + 1);
+                            showNotification("현재 가사 완료 감지: 다음 장 이동", "success");
+                        }
+                        return;
+                    }
+                } else {
+                    cur.lastWordHit = 0; // 유사도가 끊기면 힛 카운트 초기화
                 }
             }
         }
@@ -1163,6 +1205,7 @@
             debounceTimeout = setTimeout(() => { if (slidesData.length > 0) syncLyricsWithConti(); }, 1000);
         });
 
+        // 글로벌 단축키 바인딩 키 이벤트 핸들러
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') { closeImageModal(); closeFetchLyricsModal(); closeLyricsDrawer(); return; }
             if (liveScreen.style.display === 'flex') {
