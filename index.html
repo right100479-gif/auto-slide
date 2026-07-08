@@ -944,8 +944,6 @@
 
         function updateSlide(index) {
             if (index < 0 || index >= slidesData.length) return;
-            if (currentIndex === index && document.getElementById('current-song-title').innerText !== "-") return; // 동일 슬라이드 중복 초기화 락킹 방어
-            
             currentIndex = index; slideView.src = slidesData[currentIndex].fileUrl;
             document.getElementById('page-counter').innerText = `${currentIndex + 1} / ${slidesData.length}`;
             document.getElementById('current-song-title').innerText = slidesData[currentIndex].songTitle;
