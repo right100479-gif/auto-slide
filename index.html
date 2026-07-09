@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.4 (안정화 버전)</title>
+    <title>AI Praise Master Pro - 통합 스마트 세트리스트 시스템 v7.5 (자동넘김 안정화 버전)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -46,7 +46,7 @@
     <div id="setup-screen" class="flex-1 p-6 md:p-10 overflow-y-auto flex flex-col align-items-center">
         <div class="w-full max-w-[1050px] mx-auto">
             <div class="text-center mb-8">
-                <h1 class="text-4xl md:text-5xl font-bold tracking-tight">AI PRAISE MASTER <span class="text-accent neon-glow-accent">PRO v7.4</span></h1>
+                <h1 class="text-4xl md:text-5xl font-bold tracking-tight">AI PRAISE MASTER <span class="text-accent neon-glow-accent">PRO v7.5</span></h1>
                 <p class="text-gray-400 mt-3 text-lg">음성 분석 및 한글 자모 분석 기술 기반 실시간 찬양 세트리스트 송출 제어기 (안정화 버전)</p>
             </div>
             
@@ -113,10 +113,10 @@
                 <span id="page-counter" class="text-accent font-bold font-mono">0 / 0</span>
             </div>
             
-            <!-- 진행률 표시 (80% 기준) -->
+            <!-- 진행률 표시 (92% 기준) -->
             <div class="flex flex-col text-xs mt-2 pt-2 border-t border-cardBorder/50">
                 <div class="flex justify-between w-full mb-1 font-semibold">
-                    <span class="text-gray-400">가창 매칭 진행률 (안전락 해제: 80%)</span>
+                    <span class="text-gray-400">가창 매칭 진행률 (안전락 해제: 92%)</span>
                     <span id="progress-text" class="font-bold text-accent font-mono">0%</span>
                 </div>
                 <div class="w-full h-2.5 bg-bgDark border border-cardBorder rounded-full overflow-hidden">
@@ -244,6 +244,38 @@
             return false;
         }
 
+
+        // ⭐ v7.5 자동넘김 안정화: 가사를 단어가 아닌 2글자 조각으로 쪼개 진행률을 더 정밀하게 계산합니다.
+        function normalizeKoreanText(value) {
+            return String(value || '')
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\-+\s]/g, '')
+                .trim();
+        }
+
+        function buildNgramKeywordSet(text, n = 2) {
+            const compressedText = normalizeKoreanText(text);
+            const result = new Set();
+            if (!compressedText) return result;
+
+            if (compressedText.length <= n) {
+                result.add(compressedText);
+                return result;
+            }
+
+            for (let i = 0; i <= compressedText.length - n; i++) {
+                const token = compressedText.substring(i, i + n);
+                if (token.length === n) result.add(token);
+            }
+            return result;
+        }
+
+        function isMeaninglessSpeech(text) {
+            const normalized = normalizeKoreanText(text);
+            if (!normalized) return true;
+            const ignoredWords = ['아멘', '예', '네', '할렐루야', '음', '어', '자', '다시', '좋습니다'];
+            return ignoredWords.includes(normalized);
+        }
+
         function escapeHTML(value) {
             return String(value ?? '').replace(/[&<>"']/g, char => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -290,6 +322,14 @@
         let progressBuffer = ""; // 가창 진행률 누적
         let jumpBuffer = "";     // 다른 절/곡 점프 감지
         let endingBuffer = "";   // 마지막 단어 감지
+
+        // ⭐ v7.5 자동넘김 안정화 설정값
+        const AUTO_ADVANCE_PROGRESS_THRESHOLD = 92; // 기존 80%보다 안전하게 거의 끝까지 불렀을 때만 허용
+        const ENDING_HOLD_MS = 1000;                // 마지막 가사가 1초 이상 유지될 때만 다음 장 이동
+        const AUTO_ADVANCE_COOLDOWN_MS = 2500;      // 연속 스킵 방지
+        const JUMP_BUFFER_LENGTH = 30;              // 절/후렴 점프 감지용 버퍼
+        const ENDING_BUFFER_LENGTH = 40;            // 마지막 가사 감지용 버퍼
+        const PROGRESS_BUFFER_LENGTH = 260;         // 진행률 누적 버퍼
 
         const onlineLyricsDatabase = {
             "내모습이대로": [
@@ -695,19 +735,16 @@
                 const badge = document.getElementById('badge-' + i);
                 if (badge) badge.innerText = `SLIDE ${i+1} [${slidesData[i].songTitle}] (${slidesData[i].verseLabel})`;
                 
-                // ⭐ 오작동 방지 1: 도입부 및 엔딩 키워드 확장 (첫단어 6자, 마지막단어 8자)
-                slidesData[i].firstWord = compressed.length >= 6 ? compressed.substring(0, 6) : compressed;
+                // ⭐ v7.5 오작동 방지 1: 도입부/엔딩 키워드를 길게 잡아 중간 가사 오인식을 줄임
+                slidesData[i].firstWord = compressed.length >= 8 ? compressed.substring(0, 8) : compressed;
                 
-                const lastLen = Math.min(8, compressed.length);
+                const lastLen = Math.min(20, compressed.length);
                 slidesData[i].lastWord = compressed.substring(compressed.length - lastLen);
 
-                // 형태소 키워드 가사 클린 파싱 적용 (문장 부호 제거)
-                const cleanKeywords = lyricValue
-                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
-                    .split(/\s+/)
-                    .filter(w => w.length >= 2);
-                slidesData[i].keywordsSet = new Set(cleanKeywords);
-                slidesData[i].lastWordHit = 0; // 힛 카운터 초기화
+                // ⭐ v7.5 진행률 안정화: 단어 단위가 아니라 2글자 조각 단위로 진행률 계산
+                // 예: "예배합니다" → "예배", "배합", "합니", "니다"
+                slidesData[i].keywordsSet = buildNgramKeywordSet(lyricValue, 2);
+                slidesData[i].endingHoldStart = 0; // 마지막 가사 유지 시간 초기화
             }
 
             let seenSongs = new Set();
@@ -958,7 +995,7 @@
             progressBuffer = "";
             jumpBuffer = "";
             endingBuffer = "";
-            if (slidesData[currentIndex]) slidesData[currentIndex].lastWordHit = 0;
+            if (slidesData[currentIndex]) slidesData[currentIndex].endingHoldStart = 0;
 
             if (projectorWindow && !projectorWindow.closed) {
                 const pImg = projectorWindow.document.getElementById('p-img');
@@ -996,7 +1033,7 @@
             currentProgress = Math.floor(percent);
             progressBar.style.width = currentProgress + "%";
             progressText.innerText = currentProgress + "%";
-            if(currentProgress >= 80) {
+            if(currentProgress >= AUTO_ADVANCE_PROGRESS_THRESHOLD) {
                 progressText.className = "font-bold text-success font-mono text-sm";
             } else {
                 progressText.className = "font-bold text-accent font-mono";
@@ -1036,29 +1073,30 @@
                     else interim += e.results[i][0].transcript;
                 }
                 
-                // ⭐ 오작동 방지 3: 안정성을 극대화한 3단계 분할 버퍼 로직
-                if (final.length > 0) {
-                    progressBuffer += final.replace(/\s+/g, '');
-                    // 누적 버퍼가 너무 길어지지 않게 관리하되, 슬라이드 가사를 모두 담을 수 있게 200자로 유지
-                    if (progressBuffer.length > 200) progressBuffer = progressBuffer.slice(-200);
+                // ⭐ v7.5 오작동 방지 3: STT 결과를 누적하되, 무의미한 말/짧은 추임새는 제외
+                const cleanFinal = normalizeKoreanText(final);
+                if (cleanFinal.length > 0 && !isMeaninglessSpeech(cleanFinal)) {
+                    // 같은 최종 인식 문장이 반복 입력되어도 진행률이 과하게 오르지 않도록 누적 문자열 중복을 완화
+                    if (!progressBuffer.endsWith(cleanFinal)) {
+                        progressBuffer += cleanFinal;
+                    }
+                    if (progressBuffer.length > PROGRESS_BUFFER_LENGTH) progressBuffer = progressBuffer.slice(-PROGRESS_BUFFER_LENGTH);
                 }
-                const currentInterim = interim.replace(/\s+/g, '');
+                const currentInterim = normalizeKoreanText(interim);
                 const currentFullSpeech = progressBuffer + currentInterim;
 
-                // 절 점프 검사용 (20자) / 마지막 가사 확인용 (15자) 분리
-                jumpBuffer = currentFullSpeech.slice(-20);   
-                endingBuffer = currentFullSpeech.slice(-15); 
+                // 절/후렴 점프 검사용과 마지막 가사 확인용 버퍼 분리
+                jumpBuffer = currentFullSpeech.slice(-JUMP_BUFFER_LENGTH);   
+                endingBuffer = currentFullSpeech.slice(-ENDING_BUFFER_LENGTH); 
                 
                 voicePreview.textContent = (final + interim).trim() || "...";
 
-                // 가창 진행률 채점 (clear 없이 누적 유지)
+                // ⭐ v7.5 가창 진행률 채점: 2글자 조각이 누적 음성 안에 들어왔는지 확인
                 for (let keyword of currentSlideKeywordsSet) {
                     if (keyword.length < 2) continue;
                     if (detectedKeywordsSet.has(keyword)) continue;
 
-                    let cleanKeyword = keyword.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-                    // 전체 진행 버퍼를 검사하여 누락 방지
-                    if (currentFullSpeech.includes(cleanKeyword) || checkPhoneticFuzzyMatch(currentFullSpeech.slice(-30), cleanKeyword, 0.85)) {
+                    if (currentFullSpeech.includes(keyword) || checkPhoneticFuzzyMatch(currentFullSpeech.slice(-50), keyword, 0.90)) {
                         detectedKeywordsSet.add(keyword);
                     }
                 }
@@ -1085,9 +1123,10 @@
         // [🔒 가창 안전락 프로세서 및 자동 전환 기믹 메커니즘]
         function checkSpeechMatch() {
             const now = Date.now();
-            if (now - lastTriggerTime < 2500) return; // 연속 스킵 방지 쿨다운 레이어
+            if (now - lastTriggerTime < AUTO_ADVANCE_COOLDOWN_MS) return; // 연속 스킵 방지 쿨다운 레이어
 
             const cur = slidesData[currentIndex];
+            if (!cur) return;
 
             // [우선순위 1] 명시적 절수 음성 인터럽트 워프 (항시 허용)
             if (jumpBuffer.includes("일절") || jumpBuffer.includes("1절") || jumpBuffer.includes("일저")) { jumpToVerse("1절"); return; }
@@ -1123,16 +1162,15 @@
                 }
             }
 
-            // ⭐ 오작동 방지 6: [우선순위 4] 마지막 가사 자동 넘김 로직 (진행도 80% 달성 + 마지막 단어 2회 연속 감지)
-            if (currentProgress >= 80) {
-                // 8글자 길이에 대한 0.85 임계값은 1개의 오타 정도만 허용합니다.
-                const lastMatched = endingBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(endingBuffer, cur.lastWord, 0.85);
+            // ⭐ v7.5 오작동 방지 6: 마지막 가사 자동 넘김 로직
+            // 조건: 진행률 92% 이상 + 마지막 20글자 안팎의 가사가 1초 이상 유지될 때만 다음 장 이동
+            if (currentProgress >= AUTO_ADVANCE_PROGRESS_THRESHOLD && cur.lastWord && cur.lastWord.length >= 4) {
+                const lastMatched = endingBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(endingBuffer, cur.lastWord, 0.90);
                 
                 if (lastMatched) {
-                    cur.lastWordHit = (cur.lastWordHit || 0) + 1;
-                    // 디바운스 적용: 노이즈가 아닌 실제 사람이 부르는 것임을 2회 타격으로 검증
-                    if (cur.lastWordHit >= 2) {
-                        cur.lastWordHit = 0;
+                    if (!cur.endingHoldStart) cur.endingHoldStart = now;
+                    if (now - cur.endingHoldStart >= ENDING_HOLD_MS) {
+                        cur.endingHoldStart = 0;
                         lastTriggerTime = now;
                         if (currentIndex < slidesData.length - 1) {
                             updateSlide(currentIndex + 1);
@@ -1141,8 +1179,10 @@
                         return;
                     }
                 } else {
-                    cur.lastWordHit = 0; // 유사도가 끊기면 힛 카운트 초기화
+                    cur.endingHoldStart = 0; // 마지막 가사 흐름이 끊기면 유지 시간 초기화
                 }
+            } else if (cur) {
+                cur.endingHoldStart = 0;
             }
         }
 
