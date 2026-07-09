@@ -113,10 +113,10 @@
                 <span id="page-counter" class="text-accent font-bold font-mono">0 / 0</span>
             </div>
             
-            <!-- 진행률 표시 (92% 기준) -->
+            <!-- 진행률 표시 (끝가사 우선 감지 기준) -->
             <div class="flex flex-col text-xs mt-2 pt-2 border-t border-cardBorder/50">
                 <div class="flex justify-between w-full mb-1 font-semibold">
-                    <span class="text-gray-400">가창 매칭 진행률 (안전락 해제: 92%)</span>
+                    <span class="text-gray-400">가창 매칭 진행률 (끝가사 확인: 78%+)</span>
                     <span id="progress-text" class="font-bold text-accent font-mono">0%</span>
                 </div>
                 <div class="w-full h-2.5 bg-bgDark border border-cardBorder rounded-full overflow-hidden">
@@ -269,6 +269,21 @@
             return result;
         }
 
+        // ⭐ v7.6 마지막 가사 감지 후보를 여러 길이로 만듭니다.
+        // 긴 문장 하나만 비교하면 STT가 일부 단어를 빼먹었을 때 끝까지 불러도 넘어가지 않는 문제가 생깁니다.
+        function buildEndingTriggers(compressedText) {
+            const text = normalizeKoreanText(compressedText);
+            const result = [];
+            [20, 16, 12, 8, 6].forEach(len => {
+                if (text.length >= len) {
+                    const token = text.substring(text.length - len);
+                    if (token && !result.includes(token)) result.push(token);
+                }
+            });
+            if (text.length > 0 && result.length === 0) result.push(text);
+            return result;
+        }
+
         function isMeaninglessSpeech(text) {
             const normalized = normalizeKoreanText(text);
             if (!normalized) return true;
@@ -323,8 +338,8 @@
         let jumpBuffer = "";     // 다른 절/곡 점프 감지
         let endingBuffer = "";   // 마지막 단어 감지
 
-        // ⭐ v7.5 자동넘김 안정화 설정값
-        const AUTO_ADVANCE_PROGRESS_THRESHOLD = 92; // 기존 80%보다 안전하게 거의 끝까지 불렀을 때만 허용
+        // ⭐ v7.6 자동넘김 안정화 설정값
+        const AUTO_ADVANCE_PROGRESS_THRESHOLD = 78; // 현장 STT 누락을 고려해 78% 이상이면 끝가사 확인을 허용
         const ENDING_HOLD_MS = 1000;                // 마지막 가사가 1초 이상 유지될 때만 다음 장 이동
         const AUTO_ADVANCE_COOLDOWN_MS = 2500;      // 연속 스킵 방지
         const JUMP_BUFFER_LENGTH = 30;              // 절/후렴 점프 감지용 버퍼
@@ -738,8 +753,8 @@
                 // ⭐ v7.5 오작동 방지 1: 도입부/엔딩 키워드를 길게 잡아 중간 가사 오인식을 줄임
                 slidesData[i].firstWord = compressed.length >= 8 ? compressed.substring(0, 8) : compressed;
                 
-                const lastLen = Math.min(20, compressed.length);
-                slidesData[i].lastWord = compressed.substring(compressed.length - lastLen);
+                slidesData[i].endingTriggers = buildEndingTriggers(compressed);
+                slidesData[i].lastWord = slidesData[i].endingTriggers[0] || '';
 
                 // ⭐ v7.5 진행률 안정화: 단어 단위가 아니라 2글자 조각 단위로 진행률 계산
                 // 예: "예배합니다" → "예배", "배합", "합니", "니다"
@@ -1162,10 +1177,14 @@
                 }
             }
 
-            // ⭐ v7.5 오작동 방지 6: 마지막 가사 자동 넘김 로직
-            // 조건: 진행률 92% 이상 + 마지막 20글자 안팎의 가사가 1초 이상 유지될 때만 다음 장 이동
-            if (currentProgress >= AUTO_ADVANCE_PROGRESS_THRESHOLD && cur.lastWord && cur.lastWord.length >= 4) {
-                const lastMatched = endingBuffer.includes(cur.lastWord) || checkPhoneticFuzzyMatch(endingBuffer, cur.lastWord, 0.90);
+            // ⭐ v7.6 마지막 가사 자동 넘김 로직
+            // 조건: 진행률 78% 이상 + 여러 길이의 마지막 가사 후보 중 하나가 1초 이상 유지될 때 다음 장 이동
+            // 이유: 실제 찬양 중 STT가 중간 단어를 놓치면 진행률이 80%대에서 멈추는 경우가 있어 끝가사를 우선 확인합니다.
+            if (currentProgress >= AUTO_ADVANCE_PROGRESS_THRESHOLD && cur.endingTriggers && cur.endingTriggers.length > 0) {
+                const lastMatched = cur.endingTriggers.some(trigger => {
+                    if (!trigger || trigger.length < 4) return false;
+                    return endingBuffer.includes(trigger) || checkPhoneticFuzzyMatch(endingBuffer, trigger, 0.88);
+                });
                 
                 if (lastMatched) {
                     if (!cur.endingHoldStart) cur.endingHoldStart = now;
@@ -1174,7 +1193,7 @@
                         lastTriggerTime = now;
                         if (currentIndex < slidesData.length - 1) {
                             updateSlide(currentIndex + 1);
-                            showNotification("현재 가사 완료 감지: 다음 장 이동", "success");
+                            showNotification("끝가사 확인: 다음 장 이동", "success");
                         }
                         return;
                     }
